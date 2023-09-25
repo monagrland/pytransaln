@@ -34,17 +34,21 @@ def translate_1_frame(seqdict, frames, codes):
     return out
 
 
-def translate_minstops(seqdict, codes):
+def translate_minstops(seqdict, codes, maxstops):
     threeframes = translate_3_frames(seqdict, codes)
     minstops = {}
+    too_many_stops = {}
     for i in threeframes:
         stopcounts = {frame : threeframes[i][frame].seq.count("*") for frame in [0,1,2]}
-        minstops[i] = {frame : threeframes[i][frame] for frame in stopcounts if stopcounts[frame] == min(stopcounts.values())}
-    return minstops
+        if min(stopcounts.values()) <= maxstops:
+            minstops[i] = {frame : threeframes[i][frame] for frame in stopcounts if stopcounts[frame] == min(stopcounts.values())}
+        else:
+            too_many_stops[i] = {frame : threeframes[i][frame] for frame in stopcounts if stopcounts[frame] == min(stopcounts.values())}
+    return minstops, too_many_stops
 
 
-def guessframe(seqdict, codes):
-    minstops = translate_minstops(seqdict, codes)
+def guessframe(seqdict, codes, maxstops):
+    minstops, too_many_stops = translate_minstops(seqdict, codes, maxstops)
     # Assume that true reading frame has fewest stop codons
     ok = {i : minstops[i] for i in minstops if len(minstops[i]) == 1 }
     print(f"{str(len(ok))} of {str(len(minstops))} sequences have one frame with fewest stop codons")
@@ -63,7 +67,7 @@ def guessframe(seqdict, codes):
         ok.update(bestaln)
     else:
         print("No ties to break")
-    return ok
+    return ok, too_many_stops
 
 
 def trdict2seqlist(trdict):
@@ -132,12 +136,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", help="Input unaligned nucleotide sequences, Fasta format")
     parser.add_argument("--guessframe", default=False, action="store_true", help="Guess best reading frame by minimizing stop codons")
+    parser.add_argument("--maxstops", default=0, type=int, help="Max stop codons to allow in 'good' alignment; nt sequences over this threshold in all frames will be written to --out_bad")
     parser.add_argument("--frame", default=0, type=int, help="Reading frame offset to apply to all sequences, must be 0, 1, or 2")
     parser.add_argument("--code", default=5, type=int, help="Genetic code to use for all sequences, NCBI translation table number (except stopless codes 27, 28, 31)")
     parser.add_argument("--aligner", default="mafft", help="Alignment program to use (only MAFFT implemented at the moment)")
     parser.add_argument("--out_aa", default="test.aa.fasta", help="Path to write translated AA sequences")
+    parser.add_argument("--out_bad", default="test.bad.nt.fasta", help="Path to write sequences with too many stop codons")
     parser.add_argument("--out_aln_aa", default="test.aln.aa.fasta", help="Path to write aligned amino acid sequences")
     parser.add_argument("--out_aln_nt", default="test.aln.nt.fasta", help="Path to write aligned nucleotide sequences")
+    parser.add_argument("--out_aln_nt_aug", default="test.aln.nt.aug.fasta", help="Path to write aligned nucleotide sequences with likely frameshifted sequences added")
     parser.add_argument("--threads", default=1, type=int, help="Number of threads to pass to alignment program")
     args = parser.parse_args()
 
@@ -149,9 +156,13 @@ def main():
 
     nt = SeqIO.to_dict(SeqIO.parse(args.input, "fasta"))
 
+    too_many_stops = None
     if guessframe:
         seq2code = { i : args.code for i in nt }
-        tr = guessframe(seqdict=nt, codes=seq2code)
+        tr, too_many_stops = guessframe(seqdict=nt, codes=seq2code, maxstops=args.maxstops)
+        if VERBOSE:
+            print("Sequences with too many stop codons:")
+            print("\n".join(list(too_many_stops.keys())))
         seq2frame = { i : list(tr[i].keys())[0] for i in tr }
     else:
         # Single reading frame for all sequences
@@ -179,6 +190,15 @@ def main():
         ntaln.append(SeqRecord(Seq(mid), id=aa2nt[i], name=aa2nt[i]))
     with open(args.out_aln_nt, "w") as fh:
         SeqIO.write(ntaln, fh, "fasta")
+
+    # add nt sequences with too many stop codons to the "clean" alignment
+    if too_many_stops:
+        with open(args.out_bad, "w") as fh:
+            SeqIO.write([nt[i] for i in too_many_stops], fh, "fasta")
+        mafft_add = run(["mafft", "--add", args.out_bad, "--mapout", "--thread", str(args.threads), args.out_aln_nt], capture_output=True)
+        # print(mafft_add.stderr.decode())
+        with open(args.out_aln_nt_aug, "w") as fh:
+            fh.write(mafft_add.stdout.decode())
 
 if __name__ == "__main__":
     main()
