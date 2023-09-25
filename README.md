@@ -17,3 +17,8 @@ Frameshifted sequences are treated here with a heuristic based on them having
 more stop codons. For a more careful alignment, or for sets with many
 frameshifted sequences, use [MACSE](https://www.agap-ge2pop.org/macse/)
 instead.
+
+Requires MAFFT >=6.811; tested with 7.520.
+
+Recommended to inspect alignment afterwards or apply quality checks with other
+programs such as trimAl.
