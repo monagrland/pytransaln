@@ -36,9 +36,11 @@ def translate_3_frames(seqdict, codes):
     """
     out = defaultdict(lambda: defaultdict(int))
     for i in seqdict:
-        for frame in [0,1,2]:
+        for frame in [0, 1, 2]:
             newid = ";".join([i, f"frame={str(frame)}", f"code={str(codes[i])}"])
-            out[i][frame] = seqdict[i][frame:].translate(table=codes[i], id=newid, name=newid)
+            out[i][frame] = seqdict[i][frame:].translate(
+                table=codes[i], id=newid, name=newid
+            )
     return out
 
 
@@ -63,7 +65,9 @@ def translate_1_frame(seqdict, frames, codes):
     out = defaultdict(lambda: defaultdict(int))
     for i in seqdict:
         newid = ";".join([i, f"frame={str(frames[i])}", f"code={str(codes[i])}"])
-        out[i][frames[i]] = seqdict[i][frames[i]:].translate(table=codes[i], id=newid, name=newid)
+        out[i][frames[i]] = seqdict[i][frames[i] :].translate(
+            table=codes[i], id=newid, name=newid
+        )
     return out
 
 
@@ -93,11 +97,21 @@ def translate_minstops(seqdict, codes, maxstops):
     minstops = {}
     too_many_stops = {}
     for i in threeframes:
-        stopcounts = {frame : threeframes[i][frame].seq.count("*") for frame in [0,1,2]}
+        stopcounts = {
+            frame: threeframes[i][frame].seq.count("*") for frame in [0, 1, 2]
+        }
         if min(stopcounts.values()) <= maxstops:
-            minstops[i] = {frame : threeframes[i][frame] for frame in stopcounts if stopcounts[frame] == min(stopcounts.values())}
+            minstops[i] = {
+                frame: threeframes[i][frame]
+                for frame in stopcounts
+                if stopcounts[frame] == min(stopcounts.values())
+            }
         else:
-            too_many_stops[i] = {frame : threeframes[i][frame] for frame in stopcounts if stopcounts[frame] == min(stopcounts.values())}
+            too_many_stops[i] = {
+                frame: threeframes[i][frame]
+                for frame in stopcounts
+                if stopcounts[frame] == min(stopcounts.values())
+            }
     return minstops, too_many_stops
 
 
@@ -118,15 +132,28 @@ def guessframe(seqdict, codes, maxstops):
     """
     minstops, too_many_stops = translate_minstops(seqdict, codes, maxstops)
     # Assume that true reading frame has fewest stop codons
-    ok = {i : minstops[i] for i in minstops if len(minstops[i]) == 1 }
-    print(f"{str(len(ok))} of {str(len(minstops))} sequences have one frame with fewest stop codons")
+    ok = {i: minstops[i] for i in minstops if len(minstops[i]) == 1}
+    print(
+        f"{str(len(ok))} of {str(len(minstops))} sequences have one frame with fewest stop codons"
+    )
     if len(ok) < len(minstops):
-        print("Choosing reading frame for sequences with multiple minimal-stop frames by alignment scores")
+        print(
+            "Choosing reading frame for sequences with multiple minimal-stop frames by alignment scores"
+        )
         bestaln = {}
-        aligner =  Align.PairwiseAligner()
+        aligner = Align.PairwiseAligner()
         for i in minstops:
-            if len(minstops[i])>1:
-                alnscores = {frame : sum([aligner.score(minstops[i][frame], minstops[j][k]) for j in ok for k in ok[j]]) for frame in minstops[i]}
+            if len(minstops[i]) > 1:
+                alnscores = {
+                    frame: sum(
+                        [
+                            aligner.score(minstops[i][frame], minstops[j][k])
+                            for j in ok
+                            for k in ok[j]
+                        ]
+                    )
+                    for frame in minstops[i]
+                }
                 bestframe = max(alnscores, key=lambda x: alnscores[x])
                 bestaln[i] = {bestframe: minstops[i][bestframe]}
                 if VERBOSE:
@@ -140,35 +167,35 @@ def guessframe(seqdict, codes, maxstops):
 
 def trdict2seqlist(trdict):
     out = [trdict[i][frame] for i in trdict for frame in trdict[i]]
-    aa2nt = {trdict[i][frame].id : i for i in trdict for frame in trdict[i]}
+    aa2nt = {trdict[i][frame].id: i for i in trdict for frame in trdict[i]}
     return out, aa2nt
 
 
 def yield_codons(seq):
     """Generator to yield codon triplets from nucelotide sequence
-    
+
     Parameters
     ----------
     seq : Bio.SeqRecord.SeqRecord or str
         Input nucleotide sequence
-    
+
     Returns
     -------
     Bio.SeqRecord.SeqRecord, Seq, or str
         Codon triplets
     """
-    for i in range(int(len(seq)/3)):
-        yield seq[i*3 : i*3+3]
-    if len(seq)%3 != 0: # trailing untranslated sequence
-        yield seq[int(len(seq)/3)*3:]
+    for i in range(int(len(seq) / 3)):
+        yield seq[i * 3 : i * 3 + 3]
+    if len(seq) % 3 != 0:  # trailing untranslated sequence
+        yield seq[int(len(seq) / 3) * 3 :]
 
 
 def aa_aln_to_nt_aln(aa, nt, frame=0):
     """Align nucleotide sequence against aligned amino acid sequence
-    
-    Does not check for correctness of the translation. Unlike 
+
+    Does not check for correctness of the translation. Unlike
     Bio.codonalign, reading frame offset is taken into account.
-    
+
     Parameters
     ----------
     aa : Bio.SeqRecord.SeqRecord
@@ -177,12 +204,12 @@ def aa_aln_to_nt_aln(aa, nt, frame=0):
         Unaligned nucleotide sequence, assumed to have no gaps!
     frame : int
         Reading frame offset for the nucleotide sequence; 0, 1, or 2
-    
+
     Returns
     -------
     (str, str, str)
         Tuple of nucleotide sequences representing the initial offset base(s),
-        the nucleotide sequence aligned in codon blocks, and any trailing 
+        the nucleotide sequence aligned in codon blocks, and any trailing
         unaligned bases
     """
     yc = yield_codons(nt.seq[frame:])
@@ -202,23 +229,74 @@ def aa_aln_to_nt_aln(aa, nt, frame=0):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", help="Input unaligned nucleotide sequences, Fasta format")
-    parser.add_argument("--guessframe", default=False, action="store_true", help="Guess best reading frame by minimizing stop codons")
-    parser.add_argument("--maxstops", default=0, type=int, help="Max stop codons to allow in 'good' alignment; nt sequences over this threshold in all frames will be written to --out_bad")
-    parser.add_argument("--frame", default=0, type=int, help="Reading frame offset to apply to all sequences, must be 0, 1, or 2")
-    parser.add_argument("--code", default=5, type=int, help="Genetic code to use for all sequences, NCBI translation table number (except stopless codes 27, 28, 31)")
-    parser.add_argument("--aligner", default="mafft", help="Alignment program to use (only MAFFT implemented at the moment)")
-    parser.add_argument("--out_aa", default="test.aa.fasta", help="Path to write translated AA sequences")
-    parser.add_argument("--out_bad", default="test.bad.nt.fasta", help="Path to write sequences with too many stop codons")
-    parser.add_argument("--out_aln_aa", default="test.aln.aa.fasta", help="Path to write aligned amino acid sequences")
-    parser.add_argument("--out_aln_nt", default="test.aln.nt.fasta", help="Path to write aligned nucleotide sequences")
-    parser.add_argument("--out_aln_nt_aug", default="test.aln.nt.aug.fasta", help="Path to write aligned nucleotide sequences with likely frameshifted sequences added")
-    parser.add_argument("--threads", default=1, type=int, help="Number of threads to pass to alignment program")
+    parser.add_argument(
+        "--input", help="Input unaligned nucleotide sequences, Fasta format"
+    )
+    parser.add_argument(
+        "--guessframe",
+        default=False,
+        action="store_true",
+        help="Guess best reading frame by minimizing stop codons; overrides --frame",
+    )
+    parser.add_argument(
+        "--maxstops",
+        default=0,
+        type=int,
+        help="Max stop codons to allow in 'good' alignment; nt sequences over this threshold in all frames will be written to --out_bad",
+    )
+    parser.add_argument(
+        "--frame",
+        default=0,
+        type=int,
+        help="Reading frame offset to apply to all sequences, must be 0, 1, or 2",
+    )
+    parser.add_argument(
+        "--code",
+        default=5,
+        type=int,
+        help="Genetic code to use for all sequences, NCBI translation table number (except stopless codes 27, 28, 31)",
+    )
+    parser.add_argument(
+        "--aligner",
+        default="mafft",
+        help="Alignment program to use (only MAFFT implemented at the moment)",
+    )
+    parser.add_argument(
+        "--out_aa",
+        default="test.aa.fasta",
+        help="Path to write translated AA sequences",
+    )
+    parser.add_argument(
+        "--out_bad",
+        default="test.bad.nt.fasta",
+        help="Path to write sequences with too many stop codons",
+    )
+    parser.add_argument(
+        "--out_aln_aa",
+        default="test.aln.aa.fasta",
+        help="Path to write aligned amino acid sequences",
+    )
+    parser.add_argument(
+        "--out_aln_nt",
+        default="test.aln.nt.fasta",
+        help="Path to write aligned nucleotide sequences",
+    )
+    parser.add_argument(
+        "--out_aln_nt_aug",
+        default="test.aln.nt.aug.fasta",
+        help="Path to write aligned nucleotide sequences with likely frameshifted sequences added",
+    )
+    parser.add_argument(
+        "--threads",
+        default=1,
+        type=int,
+        help="Number of threads to pass to alignment program",
+    )
     args = parser.parse_args()
 
-    if args.frame not in [0,1,2]:
+    if args.frame not in [0, 1, 2]:
         raise ValueError("Frame must be 0, 1, or 2")
-        
+
     if args.code in [27, 28, 31]:
         raise ValueError("Please choose a non-ambiguous genetic code")
 
@@ -226,26 +304,30 @@ def main():
 
     too_many_stops = None
     if guessframe:
-        seq2code = { i : args.code for i in nt }
-        tr, too_many_stops = guessframe(seqdict=nt, codes=seq2code, maxstops=args.maxstops)
+        seq2code = {i: args.code for i in nt}
+        tr, too_many_stops = guessframe(
+            seqdict=nt, codes=seq2code, maxstops=args.maxstops
+        )
         if VERBOSE:
             print("Sequences with too many stop codons:")
             print("\n".join(list(too_many_stops.keys())))
-        seq2frame = { i : list(tr[i].keys())[0] for i in tr }
+        seq2frame = {i: list(tr[i].keys())[0] for i in tr}
     else:
         # Single reading frame for all sequences
-        seq2frame = { i : args.frame for i in nt }
-        seq2code = { i : args.code for i in nt }
+        seq2frame = {i: args.frame for i in nt}
+        seq2code = {i: args.code for i in nt}
         tr = translate_1_frame(seqdict=nt, frames=seq2frame, codes=seq2code)
 
     aa, aa2nt = trdict2seqlist(tr)
-    
+
     with open(args.out_aa, "w") as fh:
         SeqIO.write(aa, fh, "fasta")
 
     # read aa alignment
     print("Aligning with MAFFT")
-    mafft_job = run(["mafft", "--thread", str(args.threads), args.out_aa], capture_output=True)
+    mafft_job = run(
+        ["mafft", "--thread", str(args.threads), args.out_aa], capture_output=True
+    )
     print(mafft_job.stderr.decode())
     traln = SeqIO.to_dict(SeqIO.parse(StringIO(mafft_job.stdout.decode()), "fasta"))
     with open(args.out_aln_aa, "w") as fh:
@@ -263,10 +345,22 @@ def main():
     if too_many_stops:
         with open(args.out_bad, "w") as fh:
             SeqIO.write([nt[i] for i in too_many_stops], fh, "fasta")
-        mafft_add = run(["mafft", "--add", args.out_bad, "--mapout", "--thread", str(args.threads), args.out_aln_nt], capture_output=True)
+        mafft_add = run(
+            [
+                "mafft",
+                "--add",
+                args.out_bad,
+                "--mapout",
+                "--thread",
+                str(args.threads),
+                args.out_aln_nt,
+            ],
+            capture_output=True,
+        )
         # print(mafft_add.stderr.decode())
         with open(args.out_aln_nt_aug, "w") as fh:
             fh.write(mafft_add.stdout.decode())
+
 
 if __name__ == "__main__":
     main()
