@@ -5,7 +5,7 @@ from Bio import Align
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 from io import StringIO
-from subprocess import run, DEVNULL
+from subprocess import run
 from collections import defaultdict
 import argparse
 
@@ -15,9 +15,25 @@ VERBOSE = True
 # * Individually defined reading frames
 # * User-supplied input amino acid alignment
 # * Identify sequences with wrong frame or frameshifts
+# * Identify likely frameshift positions from MAFFT .map file
 
 
 def translate_3_frames(seqdict, codes):
+    """Translate nucleotide sequences into three forward frames
+
+    Parameters
+    ----------
+    seqdict : dict
+        SeqRecord objects for nucleotide sequences keyed by id
+    codes : dict
+        Genetic code for each sequence keyed by id
+
+    Returns
+    -------
+    dict
+        Translated sequences keyed by nucleotide sequence id (primary key) and
+        frame offset (secondary key)
+    """
     out = defaultdict(lambda: defaultdict(int))
     for i in seqdict:
         for frame in [0,1,2]:
@@ -27,6 +43,23 @@ def translate_3_frames(seqdict, codes):
 
 
 def translate_1_frame(seqdict, frames, codes):
+    """Translate nucleotide sequences into a specified forward reading frame
+
+    Parameters
+    ----------
+    seqdict : dict
+        SeqRecord objects for nucleotide sequences keyed by id
+    frames : dict
+        Frame offset (0, 1, or 2) for each sequenced keyed by id
+    codes : dict
+        Genetic code for each sequence keyed by id
+
+    Returns
+    -------
+    dict
+        Translated sequences keyed by nucleotide sequence id (primary key) and
+        frame offset (secondary key)
+    """
     out = defaultdict(lambda: defaultdict(int))
     for i in seqdict:
         newid = ";".join([i, f"frame={str(frames[i])}", f"code={str(codes[i])}"])
@@ -35,6 +68,27 @@ def translate_1_frame(seqdict, frames, codes):
 
 
 def translate_minstops(seqdict, codes, maxstops):
+    """Translate in all forward frames and report translation with fewest stops
+
+    Parameters
+    ----------
+    seqdict : dict
+        SeqRecord objects for nucleotide sequences keyed by id
+    frames : dict
+        Frame offset (0, 1, or 2) for each sequenced keyed by id
+    maxstops : int
+        Maximum number of stops to allow per sequence
+
+    Returns
+    -------
+    (dict, dict)
+        Tuple of two dicts. The first represents translated sequences keyed by
+        nucleotide sequence id (primary key) and frame offset (secondary key),
+        keeping frames with the fewest stop codons only (may be more than one
+        with the same number), and with <= the max number of stop codons.  The
+        second as above but containing sequences that have too many stop
+        codons.
+    """
     threeframes = translate_3_frames(seqdict, codes)
     minstops = {}
     too_many_stops = {}
@@ -48,6 +102,20 @@ def translate_minstops(seqdict, codes, maxstops):
 
 
 def guessframe(seqdict, codes, maxstops):
+    """Translate and automatically find best reading frame offset
+
+    For each nucleotide sequence, find reading frame that minimizes number of
+    stop codons and where number of stop codons does not exceed maximum. If
+    there is more than one frame with the same number of stop codons, then
+    pairwise align each frame's translation to the translated "good" sequences,
+    and pick the frame that maximizes alignment score.
+
+    Sequences with too many stop codons are not included.
+
+    Parameters
+    ----------------------
+    Same as translate_minstops
+    """
     minstops, too_many_stops = translate_minstops(seqdict, codes, maxstops)
     # Assume that true reading frame has fewest stop codons
     ok = {i : minstops[i] for i in minstops if len(minstops[i]) == 1 }
