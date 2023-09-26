@@ -8,14 +8,19 @@ from io import StringIO
 from subprocess import run
 from collections import defaultdict
 import argparse
+import logging
 
-VERBOSE = True
+logging.basicConfig(
+    format="%(asctime)s : %(levelname)s : %(message)s", level=logging.DEBUG
+)
+logger = logging.getLogger(__name__)
 
 # Future enhancements
 # * Individually defined reading frames
 # * User-supplied input amino acid alignment
 # * Identify sequences with wrong frame or frameshifts
 # * Identify likely frameshift positions from MAFFT .map file
+# * Add pre and post frame sequence to alignment
 # * Guess genetic code
 # * Translate 6 frames
 
@@ -68,8 +73,9 @@ def translate_1_frame(seqdict, frames, codes, maxstops):
     too_many_stops = defaultdict(lambda: defaultdict(int))
     for i in seqdict:
         newid = ";".join([i, f"frame={str(frames[i])}", f"code={str(codes[i])}"])
-        trseq = seqdict[i][frames[i]:].translate(table=codes[i], id=newid, name=newid)
+        trseq = seqdict[i][frames[i] :].translate(table=codes[i], id=newid, name=newid)
         if trseq.seq.count("*") > maxstops:
+            logger.debug("%d stop codons in sequence %s", trseq.seq.count("*"), i)
             too_many_stops[i][frames[i]] = trseq
         else:
             out[i][frames[i]] = trseq
@@ -117,6 +123,9 @@ def translate_minstops(seqdict, codes, maxstops):
                 for frame in stopcounts
                 if stopcounts[frame] == min(stopcounts.values())
             }
+            logger.debug(
+                ">= %d stop codons in sequence %s", min(stopcounts.values()), i
+            )
     return minstops, too_many_stops
 
 
@@ -138,11 +147,11 @@ def guessframe(seqdict, codes, maxstops):
     minstops, too_many_stops = translate_minstops(seqdict, codes, maxstops)
     # Assume that true reading frame has fewest stop codons
     ok = {i: minstops[i] for i in minstops if len(minstops[i]) == 1}
-    print(
+    logger.info(
         f"{str(len(ok))} of {str(len(minstops))} sequences have one frame with fewest stop codons"
     )
     if len(ok) < len(minstops):
-        print(
+        logger.info(
             "Choosing reading frame for sequences with multiple minimal-stop frames by alignment scores"
         )
         bestaln = {}
@@ -161,12 +170,11 @@ def guessframe(seqdict, codes, maxstops):
                 }
                 bestframe = max(alnscores, key=lambda x: alnscores[x])
                 bestaln[i] = {bestframe: minstops[i][bestframe]}
-                if VERBOSE:
-                    print(i)
-                    print(alnscores)
+                logger.debug(i)
+                logger.debug(alnscores)
         ok.update(bestaln)
     else:
-        print("No ties to break")
+        logger.info("No ties to break")
     return ok, too_many_stops
 
 
@@ -198,8 +206,8 @@ def yield_codons(seq):
 def aa_aln_to_nt_aln(aa, nt, frame=0):
     """Align nucleotide sequence against aligned amino acid sequence
 
-    Does not check for correctness of the translation. Unlike
-    Bio.codonalign, reading frame offset is taken into account.
+    Does not check for correctness of the translation. Unlike Bio.codonalign,
+    reading frame offset is taken into account.
 
     Parameters
     ----------
@@ -306,24 +314,34 @@ def main():
         raise ValueError("Please choose a non-ambiguous genetic code")
 
     nt = SeqIO.to_dict(SeqIO.parse(args.input, "fasta"))
+    logger.info(f"{str(len(nt))} nucleotide sequences to align")
 
     too_many_stops = None
     if args.guessframe:
-        print("Guessing reading frame for each sequence by minimizing stop codons")
+        logger.info(
+            "Guessing reading frame for each sequence by minimizing stop codons"
+        )
         seq2code = {i: args.code for i in nt}
         tr, too_many_stops = guessframe(
             seqdict=nt, codes=seq2code, maxstops=args.maxstops
         )
-        if VERBOSE:
-            print("Sequences with too many stop codons:")
-            print("\n".join(list(too_many_stops.keys())))
         seq2frame = {i: list(tr[i].keys())[0] for i in tr}
     else:
-        print(f"Applying same reading frame offset {str(args.frame)} for all sequences")
+        logger.info(
+            f"Applying same reading frame offset {str(args.frame)} for all sequences"
+        )
         # Single reading frame for all sequences
         seq2frame = {i: args.frame for i in nt}
         seq2code = {i: args.code for i in nt}
-        tr, too_many_stops = translate_1_frame(seqdict=nt, frames=seq2frame, codes=seq2code, maxstops=args.maxstops)
+        tr, too_many_stops = translate_1_frame(
+            seqdict=nt, frames=seq2frame, codes=seq2code, maxstops=args.maxstops
+        )
+
+    if too_many_stops:
+        logger.info(
+            f"{str(len(too_many_stops))} sequences with > {str(args.maxstops)} stop codons"
+        )
+    logger.info(f"{str(len(tr))} sequences for initial alignment")
 
     aa, aa2nt = trdict2seqlist(tr)
 
@@ -331,11 +349,11 @@ def main():
         SeqIO.write(aa, fh, "fasta")
 
     # read aa alignment
-    print("Aligning with MAFFT")
-    mafft_job = run(
-        ["mafft", "--thread", str(args.threads), args.out_aa], capture_output=True
-    )
-    print(mafft_job.stderr.decode())
+    logger.info("Aligning with MAFFT")
+    cmd = ["mafft", "--thread", str(args.threads), args.out_aa]
+    logger.debug("Command: %s", " ".join(cmd))
+    mafft_job = run(cmd, capture_output=True)
+    # logger.debug(mafft_job.stderr.decode())
     traln = SeqIO.to_dict(SeqIO.parse(StringIO(mafft_job.stdout.decode()), "fasta"))
     with open(args.out_aln_aa, "w") as fh:
         SeqIO.write(list(traln.values()), fh, "fasta")
@@ -350,21 +368,24 @@ def main():
 
     # add nt sequences with too many stop codons to the "clean" alignment
     if too_many_stops:
+        logger.info("Adding putative pseudogenes to initial alignment")
         with open(args.out_bad, "w") as fh:
             SeqIO.write([nt[i] for i in too_many_stops], fh, "fasta")
+        cmd = [
+            "mafft",
+            "--add",
+            args.out_bad,
+            "--mapout",
+            "--thread",
+            str(args.threads),
+            args.out_aln_nt,
+        ]
+        logger.debug("Command: %s", " ".join(cmd))
         mafft_add = run(
-            [
-                "mafft",
-                "--add",
-                args.out_bad,
-                "--mapout",
-                "--thread",
-                str(args.threads),
-                args.out_aln_nt,
-            ],
+            cmd,
             capture_output=True,
         )
-        # print(mafft_add.stderr.decode())
+        # logger.debug(mafft_add.stderr.decode())
         with open(args.out_aln_nt_aug, "w") as fh:
             fh.write(mafft_add.stdout.decode())
 
