@@ -1,0 +1,12 @@
+[project]
+name = "pytransaln"
+version = "0.1.0"
+dependencies = [
+    "biopython==1.81",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+pytransaln = "pytransaln.pytransaln:main"
