@@ -10,12 +10,6 @@ language or dependency versions, e.g.
 This is a reimplementation of some features of the above programs to perform
 simple translation-guided nucleotide (codon) alignments.
 
-See help message for details
-
-```bash
-python src/pytransaln.py --help
-```
-
 Reading frame can be manually specified or guessed with a heuristic. Genetic
 code must be manually specified; heuristic to guess genetic code is not
 implemented.
@@ -26,7 +20,27 @@ frameshifted sequences, use [MACSE](https://www.agap-ge2pop.org/macse/)
 instead, however MACSE is quite slow for de novo alignments and is probably
 overkill for most "normal" datasets without many frameshifts or pseudogenes.
 
-Requires MAFFT >=6.811; tested with 7.520.
+
+## Installation
+
+Use pip to install from the source folder; recommended to install into a
+virtualenv.
+
+```bash
+pip install .
+```
+
+
+## Usage
+
+Requires [MAFFT](https://mafft.cbrc.jp/alignment/software/) >=6.811; tested
+with v7.520.
+
+See help message for details
+
+```bash
+pytransaln --help
+```
 
 Recommended to inspect alignment afterwards or apply quality checks with other
 programs such as [trimAl](http://trimal.cgenomics.org/).
