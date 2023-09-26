@@ -341,6 +341,8 @@ def main():
         logger.info(
             f"{str(len(too_many_stops))} sequences with > {str(args.maxstops)} stop codons"
         )
+        if len(too_many_stops) >= 0.5*(len(nt)):
+            logger.info("More than 50% of sequences have too many stop codons; check genetic code and sequence orientation?")
     logger.info(f"{str(len(tr))} sequences for initial alignment")
 
     aa, aa2nt = trdict2seqlist(tr)
