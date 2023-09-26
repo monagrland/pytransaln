@@ -51,6 +51,22 @@ def translate_3_frames(seqdict, codes):
     return out
 
 
+def onebestframe(seqdict, codes, maxstops):
+    """Find one reading frame that minimizes stop codons for all sequences
+
+    Assumes that all sequences have same frame, e.g. PCR amplicons with
+    conserved primers.
+    """
+    trseq = translate_3_frames(seqdict, codes)
+    sumstops = { frame : sum([trseq[i][frame].seq.count("*") for i in trseq]) for frame in [0,1,2] }
+    for frame in sumstops:
+        logging.debug("Frame %d has total %d stop codons", frame, sumstops[frame])
+    bestframe = min(sumstops, key=lambda x: sumstops[x])
+    ok = { i : { bestframe : trseq[i][bestframe] } for i in trseq if trseq[i][bestframe].seq.count("*") <= maxstops }
+    too_many_stops = { i : { bestframe : trseq[i][bestframe] } for i in trseq if trseq[i][bestframe].seq.count("*") > maxstops }
+    return ok, too_many_stops
+
+
 def translate_1_frame(seqdict, frames, codes, maxstops):
     """Translate nucleotide sequences into a specified forward reading frame
 
@@ -249,8 +265,13 @@ def main():
         "--guessframe",
         default=False,
         action="store_true",
-        help="Guess best reading frame by minimizing stop codons; overrides --frame",
+        help="Guess best reading frame for each sequence individually that minimizes stop codons; overrides --frame",
     )
+    parser.add_argument(
+        "--onebestframe",
+        default=False,
+        action="store_true",
+        help="Find single reading frame for all sequences that minimizes stop codons; overrides --frame")
     parser.add_argument(
         "--maxstops",
         default=0,
@@ -323,6 +344,15 @@ def main():
         )
         seq2code = {i: args.code for i in nt}
         tr, too_many_stops = guessframe(
+            seqdict=nt, codes=seq2code, maxstops=args.maxstops
+        )
+        seq2frame = {i: list(tr[i].keys())[0] for i in tr}
+    elif args.onebestframe:
+        logger.info(
+            "Find one reading frame for all sequence that minimizes total stop codons"
+        )
+        seq2code = {i: args.code for i in nt}
+        tr, too_many_stops = onebestframe(
             seqdict=nt, codes=seq2code, maxstops=args.maxstops
         )
         seq2frame = {i: list(tr[i].keys())[0] for i in tr}
