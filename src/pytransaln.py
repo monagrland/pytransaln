@@ -16,6 +16,8 @@ VERBOSE = True
 # * User-supplied input amino acid alignment
 # * Identify sequences with wrong frame or frameshifts
 # * Identify likely frameshift positions from MAFFT .map file
+# * Guess genetic code
+# * Translate 6 frames
 
 
 def translate_3_frames(seqdict, codes):
@@ -44,7 +46,7 @@ def translate_3_frames(seqdict, codes):
     return out
 
 
-def translate_1_frame(seqdict, frames, codes):
+def translate_1_frame(seqdict, frames, codes, maxstops):
     """Translate nucleotide sequences into a specified forward reading frame
 
     Parameters
@@ -63,12 +65,15 @@ def translate_1_frame(seqdict, frames, codes):
         frame offset (secondary key)
     """
     out = defaultdict(lambda: defaultdict(int))
+    too_many_stops = defaultdict(lambda: defaultdict(int))
     for i in seqdict:
         newid = ";".join([i, f"frame={str(frames[i])}", f"code={str(codes[i])}"])
-        out[i][frames[i]] = seqdict[i][frames[i] :].translate(
-            table=codes[i], id=newid, name=newid
-        )
-    return out
+        trseq = seqdict[i][frames[i]:].translate(table=codes[i], id=newid, name=newid)
+        if trseq.seq.count("*") > maxstops:
+            too_many_stops[i][frames[i]] = trseq
+        else:
+            out[i][frames[i]] = trseq
+    return out, too_many_stops
 
 
 def translate_minstops(seqdict, codes, maxstops):
@@ -303,7 +308,8 @@ def main():
     nt = SeqIO.to_dict(SeqIO.parse(args.input, "fasta"))
 
     too_many_stops = None
-    if guessframe:
+    if args.guessframe:
+        print("Guessing reading frame for each sequence by minimizing stop codons")
         seq2code = {i: args.code for i in nt}
         tr, too_many_stops = guessframe(
             seqdict=nt, codes=seq2code, maxstops=args.maxstops
@@ -313,10 +319,11 @@ def main():
             print("\n".join(list(too_many_stops.keys())))
         seq2frame = {i: list(tr[i].keys())[0] for i in tr}
     else:
+        print(f"Applying same reading frame offset {str(args.frame)} for all sequences")
         # Single reading frame for all sequences
         seq2frame = {i: args.frame for i in nt}
         seq2code = {i: args.code for i in nt}
-        tr = translate_1_frame(seqdict=nt, frames=seq2frame, codes=seq2code)
+        tr, too_many_stops = translate_1_frame(seqdict=nt, frames=seq2frame, codes=seq2code, maxstops=args.maxstops)
 
     aa, aa2nt = trdict2seqlist(tr)
 
