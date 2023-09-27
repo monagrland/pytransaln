@@ -9,6 +9,8 @@ from subprocess import run
 from collections import defaultdict
 import argparse
 import logging
+import sys
+import pandas as pd
 
 logging.basicConfig(
     format="%(asctime)s : %(levelname)s : %(message)s", level=logging.DEBUG
@@ -51,6 +53,16 @@ def translate_3_frames(seqdict, codes):
     return out
 
 
+def summarize_framestats(trseq):
+    """Tabulate number stop codons per frame from translate_3_frames output"""
+    summary = [
+        {"seq_id": i, "frame": frame, "stops": trseq[i][frame].seq.count("*")}
+        for i in trseq
+        for frame in trseq[i]
+    ]
+    return pd.DataFrame.from_dict(summary)
+
+
 def onebestframe(seqdict, codes, maxstops):
     """Find one reading frame that minimizes stop codons for all sequences
 
@@ -58,12 +70,23 @@ def onebestframe(seqdict, codes, maxstops):
     conserved primers.
     """
     trseq = translate_3_frames(seqdict, codes)
-    sumstops = { frame : sum([trseq[i][frame].seq.count("*") for i in trseq]) for frame in [0,1,2] }
+    sumstops = {
+        frame: sum([trseq[i][frame].seq.count("*") for i in trseq])
+        for frame in [0, 1, 2]
+    }
     for frame in sumstops:
         logging.debug("Frame %d has total %d stop codons", frame, sumstops[frame])
     bestframe = min(sumstops, key=lambda x: sumstops[x])
-    ok = { i : { bestframe : trseq[i][bestframe] } for i in trseq if trseq[i][bestframe].seq.count("*") <= maxstops }
-    too_many_stops = { i : { bestframe : trseq[i][bestframe] } for i in trseq if trseq[i][bestframe].seq.count("*") > maxstops }
+    ok = {
+        i: {bestframe: trseq[i][bestframe]}
+        for i in trseq
+        if trseq[i][bestframe].seq.count("*") <= maxstops
+    }
+    too_many_stops = {
+        i: {bestframe: trseq[i][bestframe]}
+        for i in trseq
+        if trseq[i][bestframe].seq.count("*") > maxstops
+    }
     return ok, too_many_stops
 
 
@@ -271,7 +294,8 @@ def main():
         "--onebestframe",
         default=False,
         action="store_true",
-        help="Find single reading frame for all sequences that minimizes stop codons; overrides --frame")
+        help="Find single reading frame for all sequences that minimizes stop codons; overrides --frame",
+    )
     parser.add_argument(
         "--maxstops",
         default=0,
@@ -289,6 +313,12 @@ def main():
         default=5,
         type=int,
         help="Genetic code to use for all sequences, NCBI translation table number (except stopless codes 27, 28, 31)",
+    )
+    parser.add_argument(
+        "--statsonly",
+        default=False,
+        action="store_true",
+        help="Do not align, summarize stop codons stats per reading frame only",
     )
     parser.add_argument(
         "--aligner",
@@ -319,6 +349,11 @@ def main():
         "--out_aln_nt_aug",
         default="test.aln.nt.aug.fasta",
         help="Path to write aligned nucleotide sequences with likely frameshifted sequences added",
+    )
+    parser.add_argument(
+        "--out_stats",
+        default="test.stopcodon_stats.tsv",
+        help="Path to write per-frame stop codon statistics",
     )
     parser.add_argument(
         "--threads",
@@ -356,6 +391,12 @@ def main():
             seqdict=nt, codes=seq2code, maxstops=args.maxstops
         )
         seq2frame = {i: list(tr[i].keys())[0] for i in tr}
+    elif args.statsonly:
+        seq2code = {i: args.code for i in nt}
+        trseq = translate_3_frames(nt, seq2code)
+        df = summarize_framestats(trseq)
+        df.to_csv(args.out_stats, sep="\t", index=False)
+        sys.exit()
     else:
         logger.info(
             f"Applying same reading frame offset {str(args.frame)} for all sequences"
@@ -371,8 +412,10 @@ def main():
         logger.info(
             f"{str(len(too_many_stops))} sequences with > {str(args.maxstops)} stop codons"
         )
-        if len(too_many_stops) >= 0.5*(len(nt)):
-            logger.info("More than 50% of sequences have too many stop codons; check genetic code and sequence orientation?")
+        if len(too_many_stops) >= 0.5 * (len(nt)):
+            logger.info(
+                "More than 50% of sequences have too many stop codons; check genetic code and sequence orientation?"
+            )
     logger.info(f"{str(len(tr))} sequences for initial alignment")
 
     aa, aa2nt = trdict2seqlist(tr)
@@ -380,46 +423,49 @@ def main():
     with open(args.out_aa, "w") as fh:
         SeqIO.write(aa, fh, "fasta")
 
-    # read aa alignment
-    logger.info("Aligning with MAFFT")
-    cmd = ["mafft", "--thread", str(args.threads), args.out_aa]
-    logger.debug("Command: %s", " ".join(cmd))
-    mafft_job = run(cmd, capture_output=True)
-    # logger.debug(mafft_job.stderr.decode())
-    traln = SeqIO.to_dict(SeqIO.parse(StringIO(mafft_job.stdout.decode()), "fasta"))
-    with open(args.out_aln_aa, "w") as fh:
-        SeqIO.write(list(traln.values()), fh, "fasta")
-
-    # align nt to aa
-    ntaln = []
-    for i in traln:
-        pre, mid, post = aa_aln_to_nt_aln(traln[i], nt[aa2nt[i]], seq2frame[aa2nt[i]])
-        ntaln.append(SeqRecord(Seq(mid), id=aa2nt[i], name=aa2nt[i]))
-    with open(args.out_aln_nt, "w") as fh:
-        SeqIO.write(ntaln, fh, "fasta")
-
-    # add nt sequences with too many stop codons to the "clean" alignment
-    if too_many_stops:
-        logger.info("Adding putative pseudogenes to initial alignment")
-        with open(args.out_bad, "w") as fh:
-            SeqIO.write([nt[i] for i in too_many_stops], fh, "fasta")
-        cmd = [
-            "mafft",
-            "--add",
-            args.out_bad,
-            "--mapout",
-            "--thread",
-            str(args.threads),
-            args.out_aln_nt,
-        ]
+    if not args.statsonly:
+        # read aa alignment
+        logger.info("Aligning with MAFFT")
+        cmd = ["mafft", "--thread", str(args.threads), args.out_aa]
         logger.debug("Command: %s", " ".join(cmd))
-        mafft_add = run(
-            cmd,
-            capture_output=True,
-        )
-        # logger.debug(mafft_add.stderr.decode())
-        with open(args.out_aln_nt_aug, "w") as fh:
-            fh.write(mafft_add.stdout.decode())
+        mafft_job = run(cmd, capture_output=True)
+        # logger.debug(mafft_job.stderr.decode())
+        traln = SeqIO.to_dict(SeqIO.parse(StringIO(mafft_job.stdout.decode()), "fasta"))
+        with open(args.out_aln_aa, "w") as fh:
+            SeqIO.write(list(traln.values()), fh, "fasta")
+
+        # align nt to aa
+        ntaln = []
+        for i in traln:
+            pre, mid, post = aa_aln_to_nt_aln(
+                traln[i], nt[aa2nt[i]], seq2frame[aa2nt[i]]
+            )
+            ntaln.append(SeqRecord(Seq(mid), id=aa2nt[i], name=aa2nt[i]))
+        with open(args.out_aln_nt, "w") as fh:
+            SeqIO.write(ntaln, fh, "fasta")
+
+        # add nt sequences with too many stop codons to the "clean" alignment
+        if too_many_stops:
+            logger.info("Adding putative pseudogenes to initial alignment")
+            with open(args.out_bad, "w") as fh:
+                SeqIO.write([nt[i] for i in too_many_stops], fh, "fasta")
+            cmd = [
+                "mafft",
+                "--add",
+                args.out_bad,
+                "--mapout",
+                "--thread",
+                str(args.threads),
+                args.out_aln_nt,
+            ]
+            logger.debug("Command: %s", " ".join(cmd))
+            mafft_add = run(
+                cmd,
+                capture_output=True,
+            )
+            # logger.debug(mafft_add.stderr.decode())
+            with open(args.out_aln_nt_aug, "w") as fh:
+                fh.write(mafft_add.stdout.decode())
 
 
 if __name__ == "__main__":
