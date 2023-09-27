@@ -290,7 +290,7 @@ def align(args):
     logger.info(f"{str(len(nt))} nucleotide sequences to align")
 
     too_many_stops = None
-    if args.guessframe:
+    if args.how.startswith("e"):
         logger.info(
             "Guessing reading frame for each sequence by minimizing stop codons"
         )
@@ -299,7 +299,7 @@ def align(args):
             seqdict=nt, codes=seq2code, maxstops=args.maxstops
         )
         seq2frame = {i: list(tr[i].keys())[0] for i in tr}
-    elif args.onebestframe:
+    elif args.how.startswith("c"):
         logger.info(
             "Find one reading frame for all sequence that minimizes total stop codons"
         )
@@ -404,17 +404,16 @@ def main():
     parser_stats.set_defaults(func=stats)
     # Alignment
     parser_align.add_argument(
-        "--guessframe",
-        default=False,
-        action="store_true",
-        help="Guess best reading frame for each sequence individually that minimizes stop codons; overrides --frame",
-    )
-    parser_align.add_argument(
-        "--onebestframe",
-        default=False,
-        action="store_true",
-        help="Find single reading frame for all sequences that minimizes stop codons; overrides --frame",
-    )
+        "--how",
+        default="u",
+        help="""
+        How to choose reading frame: 'each' - find reading frame that minimizes
+        stop codons for each individual sequence; may result in more than one
+        possible frame per sequence; 'cons' - find frame that minimizes stop
+        codons across all sequences and apply that frame too all sequences;
+        'user' - user specified reading frame at option --frame
+        """
+    ),
     parser_align.add_argument(
         "--maxstops",
         default=0,
@@ -425,7 +424,7 @@ def main():
         "--frame",
         default=0,
         type=int,
-        help="Reading frame offset to apply to all sequences, must be 0, 1, or 2",
+        help="Reading frame offset to apply to all sequences, must be 0, 1, or 2; overridden by --how each or --how cons",
     )
     parser_align.add_argument(
         "--aligner",
