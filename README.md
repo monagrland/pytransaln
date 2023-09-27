@@ -51,3 +51,16 @@ To view alignments on the command line you can use
 ```bash
 alv -t codon -l alignment.fasta | less -R
 ```
+
+## Future enhancements
+
+In order of priority
+
+- [ ] Diagnostic plots: stop codons per frame; min stop codons per seq
+- [ ] Screen sequences with HMM profile of protein sequence
+- [ ] Identify sequences with wrong frame or frameshifts
+- [ ] User-supplied input amino acid alignment
+- [ ] Identify likely frameshift positions from MAFFT .map file
+- [ ] Add pre and post frame sequence to alignment
+- [ ] Guess genetic code
+- [ ] Translate 6 frames

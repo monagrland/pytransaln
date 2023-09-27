@@ -17,15 +17,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Future enhancements
-# * Individually defined reading frames
-# * User-supplied input amino acid alignment
-# * Identify sequences with wrong frame or frameshifts
-# * Identify likely frameshift positions from MAFFT .map file
-# * Add pre and post frame sequence to alignment
-# * Guess genetic code
-# * Translate 6 frames
-
 
 def translate_3_frames(seqdict, codes):
     """Translate nucleotide sequences into three forward frames
