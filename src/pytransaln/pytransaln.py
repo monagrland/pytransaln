@@ -279,90 +279,7 @@ def aa_aln_to_nt_aln(aa, nt, frame=0):
     return pre, out, post
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--input", help="Input unaligned nucleotide sequences, Fasta format"
-    )
-    parser.add_argument(
-        "--guessframe",
-        default=False,
-        action="store_true",
-        help="Guess best reading frame for each sequence individually that minimizes stop codons; overrides --frame",
-    )
-    parser.add_argument(
-        "--onebestframe",
-        default=False,
-        action="store_true",
-        help="Find single reading frame for all sequences that minimizes stop codons; overrides --frame",
-    )
-    parser.add_argument(
-        "--maxstops",
-        default=0,
-        type=int,
-        help="Max stop codons to allow in 'good' alignment; nt sequences over this threshold in all frames will be written to --out_bad",
-    )
-    parser.add_argument(
-        "--frame",
-        default=0,
-        type=int,
-        help="Reading frame offset to apply to all sequences, must be 0, 1, or 2",
-    )
-    parser.add_argument(
-        "--code",
-        default=5,
-        type=int,
-        help="Genetic code to use for all sequences, NCBI translation table number (except stopless codes 27, 28, 31)",
-    )
-    parser.add_argument(
-        "--statsonly",
-        default=False,
-        action="store_true",
-        help="Do not align, summarize stop codons stats per reading frame only",
-    )
-    parser.add_argument(
-        "--aligner",
-        default="mafft",
-        help="Alignment program to use (only MAFFT implemented at the moment)",
-    )
-    parser.add_argument(
-        "--out_aa",
-        default="test.aa.fasta",
-        help="Path to write translated AA sequences",
-    )
-    parser.add_argument(
-        "--out_bad",
-        default="test.bad.nt.fasta",
-        help="Path to write sequences with too many stop codons",
-    )
-    parser.add_argument(
-        "--out_aln_aa",
-        default="test.aln.aa.fasta",
-        help="Path to write aligned amino acid sequences",
-    )
-    parser.add_argument(
-        "--out_aln_nt",
-        default="test.aln.nt.fasta",
-        help="Path to write aligned nucleotide sequences",
-    )
-    parser.add_argument(
-        "--out_aln_nt_aug",
-        default="test.aln.nt.aug.fasta",
-        help="Path to write aligned nucleotide sequences with likely frameshifted sequences added",
-    )
-    parser.add_argument(
-        "--out_stats",
-        default="test.stopcodon_stats.tsv",
-        help="Path to write per-frame stop codon statistics",
-    )
-    parser.add_argument(
-        "--threads",
-        default=1,
-        type=int,
-        help="Number of threads to pass to alignment program",
-    )
-    args = parser.parse_args()
-
+def align(args):
     if args.frame not in [0, 1, 2]:
         raise ValueError("Frame must be 0, 1, or 2")
 
@@ -391,12 +308,6 @@ def main():
             seqdict=nt, codes=seq2code, maxstops=args.maxstops
         )
         seq2frame = {i: list(tr[i].keys())[0] for i in tr}
-    elif args.statsonly:
-        seq2code = {i: args.code for i in nt}
-        trseq = translate_3_frames(nt, seq2code)
-        df = summarize_framestats(trseq)
-        df.to_csv(args.out_stats, sep="\t", index=False)
-        sys.exit()
     else:
         logger.info(
             f"Applying same reading frame offset {str(args.frame)} for all sequences"
@@ -423,50 +334,143 @@ def main():
     with open(args.out_aa, "w") as fh:
         SeqIO.write(aa, fh, "fasta")
 
-    if not args.statsonly:
-        # read aa alignment
-        logger.info("Aligning with MAFFT")
-        cmd = ["mafft", "--thread", str(args.threads), args.out_aa]
+    # read aa alignment
+    logger.info("Aligning with MAFFT")
+    cmd = ["mafft", "--thread", str(args.threads), args.out_aa]
+    logger.debug("Command: %s", " ".join(cmd))
+    mafft_job = run(cmd, capture_output=True)
+    # logger.debug(mafft_job.stderr.decode())
+    traln = SeqIO.to_dict(SeqIO.parse(StringIO(mafft_job.stdout.decode()), "fasta"))
+    with open(args.out_aln_aa, "w") as fh:
+        SeqIO.write(list(traln.values()), fh, "fasta")
+
+    # align nt to aa
+    ntaln = []
+    for i in traln:
+        pre, mid, post = aa_aln_to_nt_aln(
+            traln[i], nt[aa2nt[i]], seq2frame[aa2nt[i]]
+        )
+        ntaln.append(SeqRecord(Seq(mid), id=aa2nt[i], name=aa2nt[i]))
+    with open(args.out_aln_nt, "w") as fh:
+        SeqIO.write(ntaln, fh, "fasta")
+
+    # add nt sequences with too many stop codons to the "clean" alignment
+    if too_many_stops:
+        logger.info("Adding putative pseudogenes to initial alignment")
+        with open(args.out_bad, "w") as fh:
+            SeqIO.write([nt[i] for i in too_many_stops], fh, "fasta")
+        cmd = [
+            "mafft",
+            "--add",
+            args.out_bad,
+            "--mapout",
+            "--thread",
+            str(args.threads),
+            args.out_aln_nt,
+        ]
         logger.debug("Command: %s", " ".join(cmd))
-        mafft_job = run(cmd, capture_output=True)
-        # logger.debug(mafft_job.stderr.decode())
-        traln = SeqIO.to_dict(SeqIO.parse(StringIO(mafft_job.stdout.decode()), "fasta"))
-        with open(args.out_aln_aa, "w") as fh:
-            SeqIO.write(list(traln.values()), fh, "fasta")
+        mafft_add = run(
+            cmd,
+            capture_output=True,
+        )
+        # logger.debug(mafft_add.stderr.decode())
+        with open(args.out_aln_nt_aug, "w") as fh:
+            fh.write(mafft_add.stdout.decode())
 
-        # align nt to aa
-        ntaln = []
-        for i in traln:
-            pre, mid, post = aa_aln_to_nt_aln(
-                traln[i], nt[aa2nt[i]], seq2frame[aa2nt[i]]
-            )
-            ntaln.append(SeqRecord(Seq(mid), id=aa2nt[i], name=aa2nt[i]))
-        with open(args.out_aln_nt, "w") as fh:
-            SeqIO.write(ntaln, fh, "fasta")
+def stats(args):
+    nt = SeqIO.to_dict(SeqIO.parse(args.input, "fasta"))
+    logger.info(f"{str(len(nt))} nucleotide sequences in input")
+    seq2code = {i: args.code for i in nt}
+    trseq = translate_3_frames(nt, seq2code)
+    df = summarize_framestats(trseq)
+    df.to_csv(args.out_stats, sep="\t", index=False)
 
-        # add nt sequences with too many stop codons to the "clean" alignment
-        if too_many_stops:
-            logger.info("Adding putative pseudogenes to initial alignment")
-            with open(args.out_bad, "w") as fh:
-                SeqIO.write([nt[i] for i in too_many_stops], fh, "fasta")
-            cmd = [
-                "mafft",
-                "--add",
-                args.out_bad,
-                "--mapout",
-                "--thread",
-                str(args.threads),
-                args.out_aln_nt,
-            ]
-            logger.debug("Command: %s", " ".join(cmd))
-            mafft_add = run(
-                cmd,
-                capture_output=True,
-            )
-            # logger.debug(mafft_add.stderr.decode())
-            with open(args.out_aln_nt_aug, "w") as fh:
-                fh.write(mafft_add.stdout.decode())
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--input", help="Input unaligned nucleotide sequences, Fasta format"
+    )
+    parser.add_argument(
+        "--code",
+        default=5,
+        type=int,
+        help="Genetic code to use for all sequences, NCBI translation table number (except stopless codes 27, 28, 31)",
+    )
+    subparsers = parser.add_subparsers(required=True)
+    parser_align = subparsers.add_parser("align", help="Align sequences")
+    parser_align.set_defaults(func=align)
+    parser_stats = subparsers.add_parser("stats", help="Report summary stats only")
+    parser_stats.set_defaults(func=stats)
+    # Alignment
+    parser_align.add_argument(
+        "--guessframe",
+        default=False,
+        action="store_true",
+        help="Guess best reading frame for each sequence individually that minimizes stop codons; overrides --frame",
+    )
+    parser_align.add_argument(
+        "--onebestframe",
+        default=False,
+        action="store_true",
+        help="Find single reading frame for all sequences that minimizes stop codons; overrides --frame",
+    )
+    parser_align.add_argument(
+        "--maxstops",
+        default=0,
+        type=int,
+        help="Max stop codons to allow in 'good' alignment; nt sequences over this threshold in all frames will be written to --out_bad",
+    )
+    parser_align.add_argument(
+        "--frame",
+        default=0,
+        type=int,
+        help="Reading frame offset to apply to all sequences, must be 0, 1, or 2",
+    )
+    parser_align.add_argument(
+        "--aligner",
+        default="mafft",
+        help="Alignment program to use (only MAFFT implemented at the moment)",
+    )
+    parser_align.add_argument(
+        "--out_aa",
+        default="test.aa.fasta",
+        help="Path to write translated AA sequences",
+    )
+    parser_align.add_argument(
+        "--out_bad",
+        default="test.bad.nt.fasta",
+        help="Path to write sequences with too many stop codons",
+    )
+    parser_align.add_argument(
+        "--out_aln_aa",
+        default="test.aln.aa.fasta",
+        help="Path to write aligned amino acid sequences",
+    )
+    parser_align.add_argument(
+        "--out_aln_nt",
+        default="test.aln.nt.fasta",
+        help="Path to write aligned nucleotide sequences",
+    )
+    parser_align.add_argument(
+        "--out_aln_nt_aug",
+        default="test.aln.nt.aug.fasta",
+        help="Path to write aligned nucleotide sequences with likely frameshifted sequences added",
+    )
+    parser_align.add_argument(
+        "--threads",
+        default=1,
+        type=int,
+        help="Number of threads to pass to alignment program",
+    )
+    # Stats
+    parser_stats.add_argument(
+        "--out_stats",
+        default="test.stopcodon_stats.tsv",
+        help="Path to write per-frame stop codon statistics",
+    )
+    args = parser.parse_args()
+    args.func(args)
 
 if __name__ == "__main__":
     main()
