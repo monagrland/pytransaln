@@ -27,7 +27,7 @@ implemented.
     total number of stop codons across all sequences (`--how cons`)
   * Choose frame individually for each sequence that minimizes stop codons for
     that sequence; may result in ties where a sequence may have more than one
-    'best' reading frame.
+    'best' reading frame (`--how each`)
 * Sequences that have more than the maximum allowed number of stop codons in
   any reading frame are flagged as putative pseudogenes. 
 * The 'good' sequences are translated in the reading frame as chosen above.
@@ -66,11 +66,11 @@ virtualenv.
 pip install .
 ```
 
+External dependencies not installed via pip, should be in path:
+* [MAFFT](https://mafft.cbrc.jp/alignment/software/) >=6.811; tested with v7.520.
+
 
 ## Usage
-
-Requires [MAFFT](https://mafft.cbrc.jp/alignment/software/) >=6.811; tested
-with v7.520.
 
 See help message for details
 
