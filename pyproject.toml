@@ -2,8 +2,9 @@
 name = "pytransaln"
 version = "0.1.0"
 dependencies = [
-    "biopython==1.81",
-    "pandas==2",
+    "biopython>=1.80, <2",
+    "pandas >=1.5, <3",
+    "matplotlib >=3.6, <4",
 ]
 
 [tool.setuptools.packages.find]

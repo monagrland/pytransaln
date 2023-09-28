@@ -11,6 +11,8 @@ import argparse
 import logging
 import sys
 import pandas as pd
+import matplotlib.pyplot as plt
+
 
 logging.basicConfig(
     format="%(asctime)s : %(levelname)s : %(message)s", level=logging.DEBUG
@@ -52,6 +54,62 @@ def summarize_framestats(trseq):
         for frame in trseq[i]
     ]
     return pd.DataFrame.from_dict(summary)
+
+
+def hist_stops_per_frame(df):
+    """Plot histogram of the number of stop codons facetted by reading frame
+
+    If sequences are amplified by the same PCR primers, we expect them all to
+    be in the same frame. Most sequences in the correct reading frame should
+    have zero stop codons.
+
+    Possible exceptions: Wrong genetic code used; amplified sequence
+    encompasses introns or untranslated regions; sequences mostly pseudogenes
+    or non-coding.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Output from summarize_framestats()
+
+    Returns
+    -------
+    fig, axs
+    """
+    fig, axs = plt.subplots(3,1,sharex=True,sharey=True,layout="constrained")
+    breaks = range(0, df["stops"].max()+1)
+    for frame in [0,1,2]:
+        axs[frame].hist(
+            x=df.query(f"frame == {frame}")['stops'],
+            bins=breaks,
+        )
+        axs[frame].set_title(f"Frame offset {str(frame)}")
+        axs[frame].set_ylabel("Count")
+    axs[2].set_xlabel("Stop codons per sequence")
+    axs[2].set_xticks(breaks)
+    return fig, axs
+
+
+def hist_minstops_per_seq(df):
+    """Plot histogram of minimum number of stops per sequence
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Output from summarize_framestats()
+
+    Returns
+    -------
+    fig, axs
+    """
+    minstops = df.groupby("seq_id")[["stops"]].min()
+    fig, axs = plt.subplots(1)
+    breaks = range(0,minstops["stops"].max()+1)
+    axs.hist(minstops["stops"], bins=breaks)
+    axs.set_ylabel("Count")
+    axs.set_xlabel("Minimum number of stop codons")
+    axs.set_xticks(breaks)
+    return fig, axs
 
 
 def onebestframe(seqdict, codes, maxstops):
@@ -375,7 +433,11 @@ def stats(args):
     trseq = translate_3_frames(nt, seq2code)
     df = summarize_framestats(trseq)
     df.to_csv(args.out_stats, sep="\t", index=False)
-
+    # Histograms
+    hist_spf_fig, hist_spf_axs = hist_stops_per_frame(df)
+    hist_spf_fig.savefig(args.out_hist_spf)
+    hist_mins_fig, hist_mins_axs = hist_minstops_per_seq(df)
+    hist_mins_fig.savefig(args.out_hist_mins)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -389,9 +451,9 @@ def main():
         help="Genetic code to use for all sequences, NCBI translation table number (except stopless codes 27, 28, 31)",
     )
     subparsers = parser.add_subparsers(required=True)
-    parser_align = subparsers.add_parser("align", help="Align sequences")
+    parser_align = subparsers.add_parser("align", help="Translation-guided nucleotide (codon) alignment")
     parser_align.set_defaults(func=align)
-    parser_stats = subparsers.add_parser("stats", help="Report summary stats only")
+    parser_stats = subparsers.add_parser("stats", help="Report summary stats on reading frames only")
     parser_stats.set_defaults(func=stats)
     # Alignment
     parser_align.add_argument(
@@ -458,6 +520,16 @@ def main():
         "--out_stats",
         default="test.stopcodon_stats.tsv",
         help="Path to write per-frame stop codon statistics",
+    )
+    parser_stats.add_argument(
+        "--out_hist_spf",
+        default="test.stopsperframe.png",
+        help="Path to plot histogram of stops per reading frame",
+    )
+    parser_stats.add_argument(
+        "--out_hist_mins",
+        default="test.minstopsperseq.png",
+        help="Path to plot histogram of minimum stop codons per sequence",
     )
     args = parser.parse_args()
     args.func(args)

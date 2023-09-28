@@ -52,11 +52,12 @@ To view alignments on the command line you can use
 alv -t codon -l alignment.fasta | less -R
 ```
 
+
 ## Future enhancements
 
 In order of priority
 
-- [ ] Diagnostic plots: stop codons per frame; min stop codons per seq
+- [x] Diagnostic plots: stop codons per frame; min stop codons per seq
 - [ ] Screen sequences with HMM profile of protein sequence
 - [ ] Identify sequences with wrong frame or frameshifts
 - [ ] User-supplied input amino acid alignment
