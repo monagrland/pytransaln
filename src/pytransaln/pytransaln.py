@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 
+from pytransaln.frameshifts import report_frameshifts
+
+import argparse
+import logging
+import sys
+import pandas as pd
+import matplotlib.pyplot as plt
+
 from Bio import SeqIO
 from Bio import Align
 from Bio.SeqRecord import SeqRecord
@@ -7,12 +15,6 @@ from Bio.Seq import Seq
 from io import StringIO
 from subprocess import run
 from collections import defaultdict
-import argparse
-import logging
-import sys
-import pandas as pd
-import matplotlib.pyplot as plt
-
 
 logging.basicConfig(
     format="%(asctime)s : %(levelname)s : %(message)s", level=logging.DEBUG
@@ -76,11 +78,11 @@ def hist_stops_per_frame(df):
     -------
     fig, axs
     """
-    fig, axs = plt.subplots(3,1,sharex=True,sharey=True,layout="constrained")
-    breaks = range(0, df["stops"].max()+1)
-    for frame in [0,1,2]:
+    fig, axs = plt.subplots(3, 1, sharex=True, sharey=True, layout="constrained")
+    breaks = range(0, df["stops"].max() + 1)
+    for frame in [0, 1, 2]:
         axs[frame].hist(
-            x=df.query(f"frame == {frame}")['stops'],
+            x=df.query(f"frame == {frame}")["stops"],
             bins=breaks,
         )
         axs[frame].set_title(f"Frame offset {str(frame)}")
@@ -104,7 +106,7 @@ def hist_minstops_per_seq(df):
     """
     minstops = df.groupby("seq_id")[["stops"]].min()
     fig, axs = plt.subplots(1)
-    breaks = range(0,minstops["stops"].max()+1)
+    breaks = range(0, minstops["stops"].max() + 1)
     axs.hist(minstops["stops"], bins=breaks)
     axs.set_ylabel("Count")
     axs.set_xlabel("Minimum number of stop codons")
@@ -396,9 +398,7 @@ def align(args):
     # align nt to aa
     ntaln = []
     for i in traln:
-        pre, mid, post = aa_aln_to_nt_aln(
-            traln[i], nt[aa2nt[i]], seq2frame[aa2nt[i]]
-        )
+        pre, mid, post = aa_aln_to_nt_aln(traln[i], nt[aa2nt[i]], seq2frame[aa2nt[i]])
         ntaln.append(SeqRecord(Seq(mid), id=aa2nt[i], name=aa2nt[i]))
     with open(args.out_aln_nt, "w") as fh:
         SeqIO.write(ntaln, fh, "fasta")
@@ -418,13 +418,24 @@ def align(args):
             args.out_aln_nt,
         ]
         logger.debug("Command: %s", " ".join(cmd))
-        mafft_add = run(
-            cmd,
-            capture_output=True,
-        )
+        mafft_add = run(cmd, capture_output=True)
         # logger.debug(mafft_add.stderr.decode())
         with open(args.out_aln_nt_aug, "w") as fh:
             fh.write(mafft_add.stdout.decode())
+        mapout = args.out_bad + ".map"
+        frameshifts = report_frameshifts(mapout)
+        for i in frameshifts:
+            logger.debug(
+                "Sequence %s has %d likely frameshifts", i, len(frameshifts[i])
+            )
+        dfs = {
+            i: pd.DataFrame(frameshifts[i]) for i in frameshifts
+        }  # TODO: coordinate columns as integers
+        for i in dfs:
+            dfs[i]["seq_id"] = i
+        df = pd.concat(list(dfs.values()))
+        df.to_csv(args.out_bad_fs_report, sep="\t", index=False)
+
 
 def stats(args):
     nt = SeqIO.to_dict(SeqIO.parse(args.input, "fasta"))
@@ -439,6 +450,7 @@ def stats(args):
     hist_mins_fig, hist_mins_axs = hist_minstops_per_seq(df)
     hist_mins_fig.savefig(args.out_hist_mins)
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -451,9 +463,13 @@ def main():
         help="Genetic code to use for all sequences, NCBI translation table number (except stopless codes 27, 28, 31)",
     )
     subparsers = parser.add_subparsers(required=True)
-    parser_align = subparsers.add_parser("align", help="Translation-guided nucleotide (codon) alignment")
+    parser_align = subparsers.add_parser(
+        "align", help="Translation-guided nucleotide (codon) alignment"
+    )
     parser_align.set_defaults(func=align)
-    parser_stats = subparsers.add_parser("stats", help="Report summary stats on reading frames only")
+    parser_stats = subparsers.add_parser(
+        "stats", help="Report summary stats on reading frames only"
+    )
     parser_stats.set_defaults(func=stats)
     # Alignment
     parser_align.add_argument(
@@ -465,7 +481,7 @@ def main():
         possible frame per sequence; 'cons' - find frame that minimizes stop
         codons across all sequences and apply that frame too all sequences;
         'user' - user specified reading frame at option --frame
-        """
+        """,
     ),
     parser_align.add_argument(
         "--maxstops",
@@ -510,6 +526,11 @@ def main():
         help="Path to write aligned nucleotide sequences with likely frameshifted sequences added",
     )
     parser_align.add_argument(
+        "--out_bad_fs_report",
+        default="test.bad.nt.frameshifts.tsv",
+        help="Path to write report on likely frameshifts in 'bad' nucleotide sequences",
+    )
+    parser_align.add_argument(
         "--threads",
         default=1,
         type=int,
@@ -533,6 +554,7 @@ def main():
     )
     args = parser.parse_args()
     args.func(args)
+
 
 if __name__ == "__main__":
     main()
