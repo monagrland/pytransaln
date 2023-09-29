@@ -91,7 +91,11 @@ def align(args):
         raise ValueError("Please choose a non-ambiguous genetic code")
 
     nt = SeqIO.to_dict(SeqIO.parse(args.input, "fasta"))
-    logger.info(f"{str(len(nt))} nucleotide sequences to align")
+    logger.info("%d nucleotide sequences to align", len(nt))
+    meanlen = sum([len(i) for i in nt.values()])/len(nt)
+    logger.info("Mean sequence length %d", meanlen)
+    if meanlen < 50:
+        logger.warning("Mean sequence length under 50 nt, stop codon based heuristic will be unreliable")
 
     too_many_stops = None
     if args.how.startswith("e"):
@@ -128,7 +132,7 @@ def align(args):
             f"{str(len(too_many_stops))} sequences with > {str(args.maxstops)} stop codons"
         )
         if len(too_many_stops) >= 0.5 * (len(nt)):
-            logger.info(
+            logger.warning(
                 "More than 50% of sequences have too many stop codons; check genetic code and sequence orientation?"
             )
     logger.info(f"{str(len(tr))} sequences for initial alignment")
