@@ -18,7 +18,7 @@ from subprocess import run
 from collections import defaultdict
 
 logging.basicConfig(
-    format="%(asctime)s : %(levelname)s : %(message)s", level=logging.DEBUG
+    format="%(asctime)s : %(levelname)s : %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
@@ -75,10 +75,7 @@ def seqrecords2sequenceblock(seqrecords, alphabet=pyhmmer.easel.Alphabet.amino()
     """
     seqblock = pyhmmer.easel.TextSequenceBlock(
         [
-            pyhmmer.easel.TextSequence(
-                sequence=str(i.seq),
-                name=i.id.encode()
-            )
+            pyhmmer.easel.TextSequence(sequence=str(i.seq), name=i.id.encode())
             for i in seqrecords
         ]
     )
@@ -103,7 +100,9 @@ def summarize_framestats_with_hmm(trseq, hmmfile, outfile=None):
     pd.DataFrame
     """
     seqlist = [trseq[i][frame] for i in trseq for frame in trseq[i]]
-    seqblock = seqrecords2sequenceblock(seqlist, alphabet=pyhmmer.easel.Alphabet.amino())
+    seqblock = seqrecords2sequenceblock(
+        seqlist, alphabet=pyhmmer.easel.Alphabet.amino()
+    )
     with pyhmmer.plan7.HMMFile(hmmfile) as hmm_file:
         hmm = hmm_file.read()
     pipeline = pyhmmer.plan7.Pipeline(hmm.alphabet)
@@ -111,13 +110,15 @@ def summarize_framestats_with_hmm(trseq, hmmfile, outfile=None):
     if outfile:
         with open(outfile, "wb") as fh:
             hits.write(fh, format="targets")
-    id2score = { i.name.decode() : i.score for i in hits }
+    id2score = {i.name.decode(): i.score for i in hits}
     summary = [
         {
-            "seq_id": i, 
+            "seq_id": i,
             "frame": frame,
             "stops": trseq[i][frame].seq.count("*"),
-            "hmm_score" : id2score[trseq[i][frame].id] if trseq[i][frame].id in id2score else None,
+            "hmm_score": id2score[trseq[i][frame].id]
+            if trseq[i][frame].id in id2score
+            else None,
         }
         for i in trseq
         for frame in trseq[i]
@@ -232,7 +233,7 @@ def translate_1_frame(seqdict, frames, codes, maxstops):
         newid = ";".join([i, f"frame={str(frames[i])}", f"code={str(codes[i])}"])
         trseq = seqdict[i][frames[i] :].translate(table=codes[i], id=newid, name=newid)
         if trseq.seq.count("*") > maxstops:
-            logger.debug("%d stop codons in sequence %s", trseq.seq.count("*"), i)
+            logger.info("%d stop codons in sequence %s", trseq.seq.count("*"), i)
             too_many_stops[i][frames[i]] = trseq
         else:
             out[i][frames[i]] = trseq
@@ -280,7 +281,7 @@ def translate_minstops(seqdict, codes, maxstops):
                 for frame in stopcounts
                 if stopcounts[frame] == min(stopcounts.values())
             }
-            logger.debug(
+            logger.info(
                 ">= %d stop codons in sequence %s", min(stopcounts.values()), i
             )
     return minstops, too_many_stops
@@ -327,8 +328,8 @@ def guessframe(seqdict, codes, maxstops):
                 }
                 bestframe = max(alnscores, key=lambda x: alnscores[x])
                 bestaln[i] = {bestframe: minstops[i][bestframe]}
-                logger.debug(i)
-                logger.debug(alnscores)
+                logger.info(i)
+                logger.info(alnscores)
         ok.update(bestaln)
     else:
         logger.info("No ties to break")
@@ -455,9 +456,9 @@ def align(args):
     # read aa alignment
     logger.info("Aligning with MAFFT")
     cmd = ["mafft", "--thread", str(args.threads), args.out_aa]
-    logger.debug("Command: %s", " ".join(cmd))
+    logger.info("Command: %s", " ".join(cmd))
     mafft_job = run(cmd, capture_output=True)
-    # logger.debug(mafft_job.stderr.decode())
+    logger.debug(mafft_job.stderr.decode())
     traln = SeqIO.to_dict(SeqIO.parse(StringIO(mafft_job.stdout.decode()), "fasta"))
     with open(args.out_aln_aa, "w") as fh:
         SeqIO.write(list(traln.values()), fh, "fasta")
@@ -484,15 +485,15 @@ def align(args):
             str(args.threads),
             args.out_aln_nt,
         ]
-        logger.debug("Command: %s", " ".join(cmd))
+        logger.info("Command: %s", " ".join(cmd))
         mafft_add = run(cmd, capture_output=True)
-        # logger.debug(mafft_add.stderr.decode())
+        logger.debug(mafft_add.stderr.decode())
         with open(args.out_aln_nt_aug, "w") as fh:
             fh.write(mafft_add.stdout.decode())
         mapout = args.out_bad + ".map"
         frameshifts = report_frameshifts(mapout)
         for i in frameshifts:
-            logger.debug(
+            logger.info(
                 "Sequence %s has %d likely frameshifts", i, len(frameshifts[i])
             )
         dfs = {
@@ -506,15 +507,18 @@ def align(args):
 
 def stats(args):
     nt = SeqIO.to_dict(SeqIO.parse(args.input, "fasta"))
-    logger.info(f"{str(len(nt))} nucleotide sequences in input")
+    logger.info("%d nucleotide sequences in input", len(nt))
     seq2code = {i: args.code for i in nt}
     trseq = translate_3_frames(nt, seq2code)
     if args.hmm:
-        df = summarize_framestats_with_hmm(trseq, args.hmm)
+        logger.info("Using HMM model in %s to screen translations", args.hmm)
+        df = summarize_framestats_with_hmm(trseq, args.hmm, args.out_hmmsearch)
     else:
         df = summarize_framestats(trseq)
+    logger.info("Writing summary stats to %s", args.out_stats)
     df.to_csv(args.out_stats, sep="\t", index=False)
     # Histograms
+    logger.info("Plotting histograms to %s and %s", args.out_hist_spf, args.out_hist_mins)
     hist_spf_fig, hist_spf_axs = hist_stops_per_frame(df)
     hist_spf_fig.savefig(args.out_hist_spf)
     hist_mins_fig, hist_mins_axs = hist_minstops_per_seq(df)
@@ -610,6 +614,11 @@ def main():
     parser_stats.add_argument(
         "--hmm",
         help="Optional HMM to screen translated sequences; only first model will be read from file",
+    )
+    parser_stats.add_argument(
+        "--out_hmmsearch",
+        default="test.hmmsearch_tblout.txt",
+        help="Path to write tabular output from hmmsearch",
     )
     parser_stats.add_argument(
         "--out_stats",
