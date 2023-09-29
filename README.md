@@ -94,10 +94,12 @@ alv -t codon -l alignment.fasta | less -R
 In order of priority
 
 - [x] Diagnostic plots: stop codons per frame; min stop codons per seq
-- [x] Screen sequences with HMM profile of protein sequence
-- [ ] Flag sequences with wrong frame or frameshifts
+- [x] Screen sequences with HMM profile of protein sequence to report stats
+- [x] Report screened sequences that pass HMM screen
+- [ ] Use HMM to screen during alignment too
 - [ ] User-supplied input amino acid alignment
 - [x] Identify likely frameshift positions from MAFFT .map file
+- [ ] Don't count terminal stop codons
 - [ ] Add pre and post frame sequence to alignment
 - [ ] Guess genetic code
 - [ ] Translate 6 frames

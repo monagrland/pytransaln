@@ -111,18 +111,28 @@ def main():
         help="Path to write tabular output from hmmsearch",
     )
     parser_stats.add_argument(
+        "--out_hist_hmm",
+        default="test.hist_hmm_scores.png",
+        help="Path to plot histogram of HMM bit scores"
+    )
+    parser_stats.add_argument(
+        "--out_screened",
+        default="test.screened_ok.fasta",
+        help="Path to write sequences that passed screening, Fasta format",
+    )
+    parser_stats.add_argument(
         "--out_stats",
         default="test.stopcodon_stats.tsv",
         help="Path to write per-frame stop codon statistics",
     )
     parser_stats.add_argument(
         "--out_hist_spf",
-        default="test.stopsperframe.png",
+        default="test.hist_stops_perframe.png",
         help="Path to plot histogram of stops per reading frame",
     )
     parser_stats.add_argument(
         "--out_hist_mins",
-        default="test.minstopsperseq.png",
+        default="test.hist_minstops_perseq.png",
         help="Path to plot histogram of minimum stop codons per sequence",
     )
     args = parser.parse_args()
