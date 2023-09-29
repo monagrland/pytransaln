@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 
 from pytransaln.frameshifts import report_frameshifts
-from pytransaln.translate import translate_3_frames, translate_1_frame, onebestframe, guessframe
+from pytransaln.translate import (
+    translate_3_frames,
+    translate_1_frame,
+    onebestframe,
+    guessframe,
+)
 
 import logging
 
@@ -14,6 +19,7 @@ from io import StringIO
 from subprocess import run
 
 logger = logging.getLogger(__name__)
+
 
 def trdict2seqlist(trdict):
     out = [trdict[i][frame] for i in trdict for frame in trdict[i]]
@@ -172,15 +178,13 @@ def align(args):
         mapout = args.out_bad + ".map"
         frameshifts = report_frameshifts(mapout)
         for i in frameshifts:
-            logger.info(
-                "Sequence %s has %d likely frameshifts", i, len(frameshifts[i])
-            )
-        dfs = {
-            i: pd.DataFrame(frameshifts[i]) for i in frameshifts
-        }  # TODO: coordinate columns as integers
+            logger.info("Sequence %s has %d likely frameshifts", i, len(frameshifts[i]))
+        dfs = {i: pd.DataFrame(frameshifts[i]) for i in frameshifts}
         for i in dfs:
             dfs[i]["seq_id"] = i
         df = pd.concat(list(dfs.values()))
+        # Rearrange column order and set integer columns
+        df = df[["seq_id", "refstart", "refend", "origstart", "origend", "gaplen"]]
+        for intcol in ["refstart", "refend", "origstart", "origend", "gaplen"]:
+            df[intcol] = df[intcol].astype(int)
         df.to_csv(args.out_bad_fs_report, sep="\t", index=False)
-
-

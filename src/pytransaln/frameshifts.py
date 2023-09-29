@@ -108,8 +108,8 @@ def report_deletions(refpos, origpos):
             # print("Gap of length " + str(gaplen) + " comprising original positions " + str(a) + " " + str(b) + " inclusive")
             out.append(
                 {
-                    "refstart": "-1",
-                    "refend": "-1",
+                    "refstart": -1,
+                    "refend": -1,
                     "origstart": a,
                     "origend": b,
                     "gaplen": gaplen,
