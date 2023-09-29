@@ -13,9 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Translation-guided nucleotide alignment and reading frame statistics of coding sequences"
+    )
     parser.add_argument(
-        "--input", help="Input unaligned nucleotide sequences, Fasta format"
+        "--input", help="Path to input file with unaligned nucleotide sequences, Fasta format"
     )
     parser.add_argument(
         "--code",

@@ -1,6 +1,11 @@
 [project]
 name = "pytransaln"
 version = "0.1.0"
+description = "Translation-guided nucleotide alignment for coding sequences"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Brandon Seah", email = "brandon.seah@thuenen.de" },
+]
 dependencies = [
     "biopython >=1.80, <2",
     "pandas >=1.5, <3",
@@ -13,3 +18,6 @@ where = ["src"]
 
 [project.scripts]
 pytransaln = "pytransaln.pytransaln:main"
+
+[project.urls]
+Homepage = "https://github.com/monagrland/pytransaln"
