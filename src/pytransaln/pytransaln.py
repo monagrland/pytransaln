@@ -5,6 +5,7 @@ from pytransaln.frameshifts import report_frameshifts
 import argparse
 import logging
 import sys
+import pyhmmer
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -52,6 +53,72 @@ def summarize_framestats(trseq):
     """Tabulate number stop codons per frame from translate_3_frames output"""
     summary = [
         {"seq_id": i, "frame": frame, "stops": trseq[i][frame].seq.count("*")}
+        for i in trseq
+        for frame in trseq[i]
+    ]
+    return pd.DataFrame.from_dict(summary)
+
+
+def seqrecords2sequenceblock(seqrecords, alphabet=pyhmmer.easel.Alphabet.amino()):
+    """Convert list of Biopython SeqRecords to Easel Sequenceblock
+
+    Parameters
+    ----------
+    seqrecords : list
+        The .id attribute of each record will be used to populate .name
+        attribute of the sequences in Sequenceblock.
+    alphabet : pyhmmer.easel.Alphabet object
+
+    Returns
+    -------
+    pyhmmer.easel.TextSequenceBlock
+    """
+    seqblock = pyhmmer.easel.TextSequenceBlock(
+        [
+            pyhmmer.easel.TextSequence(
+                sequence=str(i.seq),
+                name=i.id.encode()
+            )
+            for i in seqrecords
+        ]
+    )
+    seqblock = seqblock.digitize(alphabet)
+    return seqblock
+
+
+def summarize_framestats_with_hmm(trseq, hmmfile, outfile=None):
+    """Tabulate stop codons and HMM score of three-frame translation
+
+    Parameters
+    ----------
+    trseq : dict
+        Output of translate_3_frames
+    hmmfile : str
+        Path to HMM file; only the first model in file will be used.
+    outfile : str
+        Path to write HMM results in tblout format
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    seqlist = [trseq[i][frame] for i in trseq for frame in trseq[i]]
+    seqblock = seqrecords2sequenceblock(seqlist, alphabet=pyhmmer.easel.Alphabet.amino())
+    with pyhmmer.plan7.HMMFile(hmmfile) as hmm_file:
+        hmm = hmm_file.read()
+    pipeline = pyhmmer.plan7.Pipeline(hmm.alphabet)
+    hits = pipeline.search_hmm(hmm, seqblock)
+    if outfile:
+        with open(outfile, "wb") as fh:
+            hits.write(fh, format="targets")
+    id2score = { i.name.decode() : i.score for i in hits }
+    summary = [
+        {
+            "seq_id": i, 
+            "frame": frame,
+            "stops": trseq[i][frame].seq.count("*"),
+            "hmm_score" : id2score[trseq[i][frame].id] if trseq[i][frame].id in id2score else None,
+        }
         for i in trseq
         for frame in trseq[i]
     ]
@@ -442,7 +509,10 @@ def stats(args):
     logger.info(f"{str(len(nt))} nucleotide sequences in input")
     seq2code = {i: args.code for i in nt}
     trseq = translate_3_frames(nt, seq2code)
-    df = summarize_framestats(trseq)
+    if args.hmm:
+        df = summarize_framestats_with_hmm(trseq, args.hmm)
+    else:
+        df = summarize_framestats(trseq)
     df.to_csv(args.out_stats, sep="\t", index=False)
     # Histograms
     hist_spf_fig, hist_spf_axs = hist_stops_per_frame(df)
@@ -537,6 +607,10 @@ def main():
         help="Number of threads to pass to alignment program",
     )
     # Stats
+    parser_stats.add_argument(
+        "--hmm",
+        help="Optional HMM to screen translated sequences; only first model will be read from file",
+    )
     parser_stats.add_argument(
         "--out_stats",
         default="test.stopcodon_stats.tsv",

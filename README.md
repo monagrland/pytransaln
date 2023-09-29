@@ -66,7 +66,7 @@ virtualenv.
 pip install .
 ```
 
-External dependencies not installed via pip, should be in path:
+External dependencies not installed via pip, should also be in path:
 * [MAFFT](https://mafft.cbrc.jp/alignment/software/) >=6.811; tested with v7.520.
 
 
@@ -94,8 +94,8 @@ alv -t codon -l alignment.fasta | less -R
 In order of priority
 
 - [x] Diagnostic plots: stop codons per frame; min stop codons per seq
-- [ ] Screen sequences with HMM profile of protein sequence
-- [ ] Identify sequences with wrong frame or frameshifts
+- [x] Screen sequences with HMM profile of protein sequence
+- [ ] Flag sequences with wrong frame or frameshifts
 - [ ] User-supplied input amino acid alignment
 - [x] Identify likely frameshift positions from MAFFT .map file
 - [ ] Add pre and post frame sequence to alignment
