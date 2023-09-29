@@ -7,6 +7,7 @@ from Bio.Align import PairwiseAligner
 
 logger = logging.getLogger(__name__)
 
+
 def translate_3_frames(seqdict, codes):
     """Translate nucleotide sequences into three forward frames
 
@@ -45,7 +46,7 @@ def onebestframe(seqdict, codes, maxstops):
         for frame in [0, 1, 2]
     }
     for frame in sumstops:
-        logging.debug("Frame %d has total %d stop codons", frame, sumstops[frame])
+        logging.info("Frame %d has total %d stop codons", frame, sumstops[frame])
     bestframe = min(sumstops, key=lambda x: sumstops[x])
     ok = {
         i: {bestframe: trseq[i][bestframe]}
@@ -132,9 +133,7 @@ def translate_minstops(seqdict, codes, maxstops):
                 for frame in stopcounts
                 if stopcounts[frame] == min(stopcounts.values())
             }
-            logger.info(
-                ">= %d stop codons in sequence %s", min(stopcounts.values()), i
-            )
+            logger.info(">= %d stop codons in sequence %s", min(stopcounts.values()), i)
     return minstops, too_many_stops
 
 
@@ -185,5 +184,3 @@ def guessframe(seqdict, codes, maxstops):
     else:
         logger.info("No ties to break")
     return ok, too_many_stops
-
-

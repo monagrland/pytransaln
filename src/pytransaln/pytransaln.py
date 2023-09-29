@@ -17,7 +17,8 @@ def main():
         description="Translation-guided nucleotide alignment and reading frame statistics of coding sequences"
     )
     parser.add_argument(
-        "--input", help="Path to input file with unaligned nucleotide sequences, Fasta format"
+        "--input",
+        help="Path to input file with unaligned nucleotide sequences, Fasta format",
     )
     parser.add_argument(
         "--code",

@@ -11,6 +11,7 @@ from Bio import SeqIO
 
 logger = logging.getLogger(__name__)
 
+
 def summarize_framestats(trseq):
     """Tabulate number stop codons per frame from translate_3_frames output"""
     summary = [
@@ -157,9 +158,10 @@ def stats(args):
     logger.info("Writing summary stats to %s", args.out_stats)
     df.to_csv(args.out_stats, sep="\t", index=False)
     # Histograms
-    logger.info("Plotting histograms to %s and %s", args.out_hist_spf, args.out_hist_mins)
+    logger.info(
+        "Plotting histograms to %s and %s", args.out_hist_spf, args.out_hist_mins
+    )
     hist_spf_fig, hist_spf_axs = hist_stops_per_frame(df)
     hist_spf_fig.savefig(args.out_hist_spf)
     hist_mins_fig, hist_mins_axs = hist_minstops_per_seq(df)
     hist_mins_fig.savefig(args.out_hist_mins)
-
