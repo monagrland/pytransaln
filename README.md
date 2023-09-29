@@ -5,7 +5,7 @@ Existing tools for translation-guided codon alignment may no longer be
 accessible, e.g. [TranslatorX](https://doi.org/10.1093/nar/gkq291) or
 [pal2nal](https://www.bork.embl.de/pal2nal/), or may need to be ported to new
 language or dependency versions, e.g.
-[TransAlign](https://uol.de/systematik-evolutionsbiologie/programme).
+[transAlign](https://uol.de/systematik-evolutionsbiologie/programme).
 
 This is a reimplementation of some features of the above programs to perform
 simple translation-guided nucleotide (codon) alignments, and to screen for
@@ -21,6 +21,7 @@ Reading frame can be manually specified or guessed with a heuristic. Genetic
 code must be manually specified; heuristic to guess genetic code is not yet
 implemented.
 
+Choose reading frames for translation:
 * Reading frame can be chosen in one of three ways (specified to option `--how`):
   * User-defined frame offset applied to all sequences (`--how user`)
   * Apply same frame to all sequences, choose consensus frame that minimizes
@@ -37,6 +38,9 @@ implemented.
   highest total alignment score is chosen.
 * Translated 'good' sequences are aligned with MAFFT; amino acid translation is
   then back-translated to a codon alignment
+
+Dealing with pseudogenes/frameshifted sequences (adapted from transAlign, see
+[Bininda-Edmonds, 2005](https://doi.org/10.1186/1471-2105-6-156)):
 * Nucleotide sequences of putative pseudogenes are then aligned against the
   reference 'good' alignment with MAFFT `--add` option
 * Likely frameshift positions in putative pseudogenes are reported from the
@@ -46,15 +50,18 @@ implemented.
 ## Assumptions
 
 * Input sequences are homologous
-* Input sequences are protein coding sequences without introns or untranslated regions
-* Input sequences are long enough that wrong reading frame will be evident in excessive stop codons
+* Input sequences are protein coding sequences without introns or untranslated
+  regions
+* Input sequences are long enough that wrong reading frame will be evident in
+  excessive stop codons (warning if average sequence length is under 50)
 * If pseudogenes are present, majority of sequences are not pseudogenes
+  (warning if more than half of sequences have excessive stop codons)
 * Sequences all use the same genetic code
 
 For a more careful alignment, or for sequence sets with many frameshifted
 sequences, use [MACSE](https://www.agap-ge2pop.org/macse/) instead, however
 MACSE is quite slow for de novo alignments and is probably overkill for most
-"normal" datasets without many frameshifts or pseudogenes.
+"normal" datasets where most sequences do not have frameshifts.
 
 
 ## Installation
@@ -78,8 +85,8 @@ See help message for details
 pytransaln --help
 ```
 
-Recommended to inspect alignment afterwards or apply quality checks with other
-programs such as [trimAl](http://trimal.cgenomics.org/).
+It is recommended to inspect the alignment afterwards or apply quality checks
+with other programs such as [trimAl](http://trimal.cgenomics.org/).
 
 To view alignments on the command line you can use
 [alv](https://github.com/arvestad/alv) and pipe to less with the `-R` option:
@@ -97,6 +104,8 @@ In order of priority
 - [x] Screen sequences with HMM profile of protein sequence to report stats
 - [x] Report screened sequences that pass HMM screen
 - [ ] Use HMM to screen during alignment too
+- [ ] Third subcommand: Framefinder - find best reading frame only, with or
+      without help of HMM
 - [ ] User-supplied input amino acid alignment
 - [x] Identify likely frameshift positions from MAFFT .map file
 - [ ] Don't count terminal stop codons
