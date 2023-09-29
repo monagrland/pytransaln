@@ -67,14 +67,13 @@ MACSE is quite slow for de novo alignments and is probably overkill for most
 
 ## Installation
 
-Use pip to install from the source folder; recommended to install into a
-virtualenv.
+Install from PyPI with pip, preferably into a virtualenv or Conda environment:
 
 ```bash
-pip install .
+pip install pytransaln
 ```
 
-External dependencies not installed via pip, should also be in path:
+External dependencies are not installed via pip, but should also be in path:
 * [MAFFT](https://mafft.cbrc.jp/alignment/software/) >=6.811; tested with v7.520.
 
 
