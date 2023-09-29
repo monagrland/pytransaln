@@ -92,10 +92,12 @@ def align(args):
 
     nt = SeqIO.to_dict(SeqIO.parse(args.input, "fasta"))
     logger.info("%d nucleotide sequences to align", len(nt))
-    meanlen = sum([len(i) for i in nt.values()])/len(nt)
+    meanlen = sum([len(i) for i in nt.values()]) / len(nt)
     logger.info("Mean sequence length %d", meanlen)
     if meanlen < 50:
-        logger.warning("Mean sequence length under 50 nt, stop codon based heuristic will be unreliable")
+        logger.warning(
+            "Mean sequence length under 50 nt, stop codon based heuristic will be unreliable"
+        )
 
     too_many_stops = None
     if args.how.startswith("e"):

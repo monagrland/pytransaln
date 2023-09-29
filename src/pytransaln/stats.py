@@ -160,7 +160,7 @@ def hist_hmm_scores(df, vlines):
     fig, axs
     """
     fig, ax = plt.subplots(1)
-    histvals = ax.hist(df['hmm_score'])
+    histvals = ax.hist(df["hmm_score"])
     ax.vlines(vlines, ymin=0, ymax=histvals[0].max(), color="grey", linestyles="dashed")
     ax.set_ylabel("Count")
     ax.set_xlabel("HMM alignment bit score")
@@ -176,17 +176,17 @@ def stats(args):
         logger.info("Using HMM model in %s to screen translations", args.hmm)
         df = summarize_framestats_with_hmm(trseq, args.hmm, args.out_hmmsearch)
         # Outlier HMM bit scores
-        q1, q3 = df['hmm_score'].quantile([0.25,0.75]) # NaN values are ignored
+        q1, q3 = df["hmm_score"].quantile([0.25, 0.75])  # NaN values are ignored
         iqr = q3 - q1
-        ulim = q3 + 1.5*iqr
-        llim = q1 - 1.5*iqr
+        ulim = q3 + 1.5 * iqr
+        llim = q1 - 1.5 * iqr
         logger.info("Outlier thresholds for HMM bit scores: %d , %d", llim, ulim)
-        df['hmm_ok'] = df['hmm_score'].apply(lambda x : x > llim and x < ulim)
-        df['ok'] = df['hmm_ok'] & (df['stops'] == 0)
+        df["hmm_ok"] = df["hmm_score"].apply(lambda x: x > llim and x < ulim)
+        df["ok"] = df["hmm_ok"] & (df["stops"] == 0)
         # TODO check for sequences which pass in more than one frame
     else:
         df = summarize_framestats(trseq)
-        df['ok'] = df['stops'] == 0
+        df["ok"] = df["stops"] == 0
     logger.info("Writing summary stats to %s", args.out_stats)
     df.to_csv(args.out_stats, sep="\t", index=False)
     # Histograms
@@ -199,10 +199,10 @@ def stats(args):
     hist_mins_fig.savefig(args.out_hist_mins)
     if args.hmm:
         logger.info("Plotting histogram of HMM bitscores %s", args.out_hist_hmm)
-        hist_hmm_fig, hist_hmm_axs = hist_hmm_scores(df, [llim,ulim])
+        hist_hmm_fig, hist_hmm_axs = hist_hmm_scores(df, [llim, ulim])
         hist_hmm_fig.savefig(args.out_hist_hmm)
         # Write screened sequences
-        ok = list(df[df['ok']]['seq_id'])
+        ok = list(df[df["ok"]]["seq_id"])
         logger.info("Writing ok sequences to file %s", args.out_screened)
         with open(args.out_screened, "w") as fh:
             SeqIO.write([nt[i] for i in ok], fh, "fasta")

@@ -113,7 +113,7 @@ def main():
     parser_stats.add_argument(
         "--out_hist_hmm",
         default="test.hist_hmm_scores.png",
-        help="Path to plot histogram of HMM bit scores"
+        help="Path to plot histogram of HMM bit scores",
     )
     parser_stats.add_argument(
         "--out_screened",

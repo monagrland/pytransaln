@@ -1,18 +1,19 @@
 Translation-guided alignment of nucleotide sequences
 ====================================================
 
-Existing tools for translation-guided codon alignment may no longer be
-accessible, e.g. [TranslatorX](https://doi.org/10.1093/nar/gkq291) or
+Several established tools for translation-guided codon alignment are no longer
+maintained or available for download, e.g.
+[TranslatorX](https://doi.org/10.1093/nar/gkq291) or
 [pal2nal](https://www.bork.embl.de/pal2nal/), or may need to be ported to new
-language or dependency versions, e.g.
+language or dependency versions to work properly, e.g.
 [transAlign](https://uol.de/systematik-evolutionsbiologie/programme).
 
-This is a reimplementation of some features of the above programs to perform
-simple translation-guided nucleotide (codon) alignments, and to screen for
-pseudogenes with frameshift indels or non-sense substitutions.
+This package is a reimplementation of some features of the above programs to
+perform simple translation-guided nucleotide (codon) alignments, and to screen
+for pseudogenes with frameshift indels or non-sense substitutions.
 
 The tool can be used to perform alignment or simply report sequence statistics
-and flag potential pseudogenes.
+and flag potential pseudogenes. The intended use cases are 
 
 
 ## How the alignment works
@@ -108,6 +109,7 @@ In order of priority
       without help of HMM
 - [ ] User-supplied input amino acid alignment
 - [x] Identify likely frameshift positions from MAFFT .map file
+- [ ] Benchmarking dataset
 - [ ] Don't count terminal stop codons
 - [ ] Add pre and post frame sequence to alignment
 - [ ] Guess genetic code
