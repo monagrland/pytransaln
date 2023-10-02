@@ -7,6 +7,7 @@ from pytransaln.translate import (
     onebestframe,
     guessframe,
 )
+from pytransaln.stats import summarize_framestats_with_hmm
 
 import logging
 
@@ -17,6 +18,7 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 from io import StringIO
 from subprocess import run
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +101,7 @@ def align(args):
             "Mean sequence length under 50 nt, stop codon based heuristic will be unreliable"
         )
 
-    too_many_stops = None
+    too_many_stops = {}
     if args.how.startswith("e"):
         logger.info(
             "Guessing reading frame for each sequence by minimizing stop codons"
@@ -129,15 +131,33 @@ def align(args):
             seqdict=nt, frames=seq2frame, codes=seq2code, maxstops=args.maxstops
         )
 
-    if too_many_stops:
+    if len(too_many_stops) > 0:
         logger.info(
-            f"{str(len(too_many_stops))} sequences with > {str(args.maxstops)} stop codons"
+            "%d sequences with > %d stop codons", len(too_many_stops), args.maxstops,
         )
         if len(too_many_stops) >= 0.5 * (len(nt)):
             logger.warning(
                 "More than 50% of sequences have too many stop codons; check genetic code and sequence orientation?"
             )
-    logger.info(f"{str(len(tr))} sequences for initial alignment")
+
+    if args.hmm:
+        logger.info("Using HMM %s to screen translations of %d sequences with <= %d stop codons", args.hmm, len(tr), args.maxstops)
+        df, llim, ulim = summarize_framestats_with_hmm(tr, args.hmm, args.out_hmmsearch, 1.5)
+        # TODO output HMM screening stats
+        ok = [(i.seq_id, i.frame) for i in df[df['hmm_ok']].itertuples()]
+        add = defaultdict(lambda: defaultdict(str))
+        ok_dict = defaultdict(lambda: defaultdict(str))
+        for i in tr:
+            for frame in tr[i]:
+                if (i, int(frame)) in ok:
+                    ok_dict[i][frame] = tr[i][frame]
+                else:
+                    add[i][frame] = tr[i][frame]
+        logger.info("%d sequences failed HMM screening despite having <= %d stop codons; will not be used in initial alignment", len(add), args.maxstops)
+        too_many_stops.update(add) # TODO separate these bad sequences in another file
+        tr = ok_dict
+
+    logger.info("%d sequences for initial alignment", len(tr))
 
     aa, aa2nt = trdict2seqlist(tr)
 

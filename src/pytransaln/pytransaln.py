@@ -29,6 +29,15 @@ def main():
         help="Genetic code to use for all sequences, NCBI translation table number (except stopless codes 27, 28, 31)",
     )
     parser.add_argument(
+        "--hmm",
+        help="Optional HMM to screen translated sequences; only first model will be read from file",
+    )
+    parser.add_argument(
+        "--out_hmmsearch",
+        default="test.hmmsearch_tblout.txt",
+        help="Path to write tabular output from hmmsearch",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=__version__,
@@ -108,15 +117,6 @@ def main():
         help="Number of threads to pass to alignment program",
     )
     # Stats
-    parser_stats.add_argument(
-        "--hmm",
-        help="Optional HMM to screen translated sequences; only first model will be read from file",
-    )
-    parser_stats.add_argument(
-        "--out_hmmsearch",
-        default="test.hmmsearch_tblout.txt",
-        help="Path to write tabular output from hmmsearch",
-    )
     parser_stats.add_argument(
         "--out_hist_hmm",
         default="test.hist_hmm_scores.png",

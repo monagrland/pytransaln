@@ -46,7 +46,7 @@ def seqrecords2sequenceblock(seqrecords, alphabet=pyhmmer.easel.Alphabet.amino()
     return seqblock
 
 
-def summarize_framestats_with_hmm(trseq, hmmfile, outfile=None):
+def summarize_framestats_with_hmm(trseq, hmmfile, outfile=None, iqr_mult=1.5):
     """Tabulate stop codons and HMM score of three-frame translation
 
     Parameters
@@ -86,7 +86,17 @@ def summarize_framestats_with_hmm(trseq, hmmfile, outfile=None):
         for i in trseq
         for frame in trseq[i]
     ]
-    return pd.DataFrame.from_dict(summary)
+    df = pd.DataFrame.from_dict(summary)
+    # Outlier HMM bit scores
+    logger.info("Using outlier threshold multiplier of %d", iqr_mult)
+    q1, q3 = df["hmm_score"].quantile([0.25, 0.75])  # NaN values are ignored
+    iqr = q3 - q1
+    ulim = q3 + iqr_mult * iqr
+    llim = q1 - iqr_mult * iqr
+    logger.info("Outlier thresholds for HMM bit scores: %d , %d", llim, ulim)
+    df["hmm_ok"] = df["hmm_score"].apply(lambda x: x > llim and x < ulim)
+    df["ok"] = df["hmm_ok"] & (df["stops"] == 0)
+    return df, llim, ulim
 
 
 def hist_stops_per_frame(df):
@@ -174,16 +184,8 @@ def stats(args):
     trseq = translate_3_frames(nt, seq2code)
     if args.hmm:
         logger.info("Using HMM model in %s to screen translations", args.hmm)
-        df = summarize_framestats_with_hmm(trseq, args.hmm, args.out_hmmsearch)
-        # Outlier HMM bit scores
-        q1, q3 = df["hmm_score"].quantile([0.25, 0.75])  # NaN values are ignored
-        iqr = q3 - q1
-        ulim = q3 + 1.5 * iqr
-        llim = q1 - 1.5 * iqr
-        logger.info("Outlier thresholds for HMM bit scores: %d , %d", llim, ulim)
-        df["hmm_ok"] = df["hmm_score"].apply(lambda x: x > llim and x < ulim)
-        df["ok"] = df["hmm_ok"] & (df["stops"] == 0)
         # TODO check for sequences which pass in more than one frame
+        df, llim, ulim = summarize_framestats_with_hmm(trseq, args.hmm, args.out_hmmsearch, 1.5)
     else:
         df = summarize_framestats(trseq)
         df["ok"] = df["stops"] == 0
@@ -206,3 +208,6 @@ def stats(args):
         logger.info("Writing ok sequences to file %s", args.out_screened)
         with open(args.out_screened, "w") as fh:
             SeqIO.write([nt[i] for i in ok], fh, "fasta")
+        # logger.info("Writing bad sequences to file %s", args.out_bad)
+        # with open(args.out_bad, "w") as fh:
+        #     SeqIO.write([nt[i] for i in nt if i not in ok], fh, "fasta")
