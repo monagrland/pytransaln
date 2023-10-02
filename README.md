@@ -8,12 +8,14 @@ maintained or available for download, e.g.
 language or dependency versions to work properly, e.g.
 [transAlign](https://uol.de/systematik-evolutionsbiologie/programme).
 
-This package is a reimplementation of some features of the above programs to
-perform simple translation-guided nucleotide (codon) alignments, and to screen
-for pseudogenes with frameshift indels or non-sense substitutions.
+This package reimplements some features of the above programs to perform simple
+translation-guided nucleotide (codon) alignments, and to screen for pseudogenes
+with frameshift indels or non-sense substitutions.
 
 The tool can be used to perform alignment or simply report sequence statistics
-and flag potential pseudogenes. The intended use cases are 
+and flag potential pseudogenes. The intended use case is to screen and align
+collections of PCR-amplified coding sequences used for metabarcoding, e.g. the
+mitochondrial cytochrome c oxidase subunit I (mtCOI) gene fragment.
 
 
 ## How the alignment works

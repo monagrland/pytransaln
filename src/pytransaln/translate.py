@@ -8,6 +8,39 @@ from Bio.Align import PairwiseAligner
 logger = logging.getLogger(__name__)
 
 
+def translate_striptrailing(seq, frame, table, id, name):
+    """Translate SeqRecord nucleotide sequence without trailing extra bases
+
+    .translate() method of Bio.SeqRecord will complain if sequence length is
+    not a multiple of three, ominously saying that this may be an error in
+    future versions of Biopython. This function translates a SeqRecord with a
+    specified frame offset and strips trailing extra bases so that the length
+    is a multiple of three.
+
+    Parameters
+    ----------
+    seq : Bio.SeqRecord
+        Nucleotide sequence to be translated. Assumes no gaps else GIGO
+    frame : int
+        Reading frame offset, must be 0, 1, or 2 (forward) or -1, -2, -3 (reverse complement).
+    table : int
+        NCBI translation table number
+    id : str
+    name : str
+        ID and Name for new SeqRecord object of the translation
+    """
+    if frame < 0:
+        len_prime = len(seq) - (0 - frame - 1)
+        trailing = (len_prime % 3)
+        until = len(seq) - trailing
+        return seq.reverse_complement()[-frame-1:until].translate(table=table, id=id, name=name)
+    else:
+        len_prime = len(seq) - frame
+        trailing = (len_prime % 3)
+        until = len(seq) - trailing
+        return seq[frame:until].translate(table=table, id=id, name=name)
+
+
 def translate_3_frames(seqdict, codes):
     """Translate nucleotide sequences into three forward frames
 
@@ -28,8 +61,8 @@ def translate_3_frames(seqdict, codes):
     for i in seqdict:
         for frame in [0, 1, 2]:
             newid = ";".join([i, f"frame={str(frame)}", f"code={str(codes[i])}"])
-            out[i][frame] = seqdict[i][frame:].translate(
-                table=codes[i], id=newid, name=newid
+            out[i][frame] = translate_striptrailing(
+                seqdict[i], frame=frame, table=codes[i], id=newid, name=newid
             )
     return out
 
@@ -83,7 +116,9 @@ def translate_1_frame(seqdict, frames, codes, maxstops):
     too_many_stops = defaultdict(lambda: defaultdict(int))
     for i in seqdict:
         newid = ";".join([i, f"frame={str(frames[i])}", f"code={str(codes[i])}"])
-        trseq = seqdict[i][frames[i] :].translate(table=codes[i], id=newid, name=newid)
+        trseq = translate_striptrailing(
+            seqdict[i], frame=frames[i], table=codes[i], id=newid, name=newid
+        )
         if trseq.seq.count("*") > maxstops:
             logger.info("%d stop codons in sequence %s", trseq.seq.count("*"), i)
             too_many_stops[i][frames[i]] = trseq
