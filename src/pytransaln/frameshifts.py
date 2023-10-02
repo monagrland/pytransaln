@@ -13,8 +13,8 @@ def read_mafft_add_map(infile):
         keyed by sequence id of added sequence; secondary keys 'letter',
         'origpos', 'refpos' to list objects comprising the three columns of the
         MAFFT mapout table. Original sequence positions not represented in the
-        reference alignment ("-" in ref alignment position column) are encoded
-        here as integer -1.
+        reference alignment (reported by MAFFT as "-" in ref alignment position
+        column) are encoded here as integer -1.
     """
     out = defaultdict(lambda: defaultdict(list))
     currid = None
@@ -99,7 +99,8 @@ def report_deletions(refpos, origpos):
     -------
     list of dicts with coordinates and length of each gap
     """
-    # TODO : ignore first run of gaps if alignment starts with gaps
+    # TODO : ignore any gaps within the first three bases because these are too
+    # short to align properly, mostly alignment artifacts
     out = []
     gappos = [origpos[i] for i in range(len(refpos)) if refpos[i] == -1]
     if len(gappos) > 0:
