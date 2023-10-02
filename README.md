@@ -39,8 +39,11 @@ Choose reading frames for translation:
   three) alternative translations are each pairwise aligned to the remaining
   sequences with an unambiguous best reading frame. The frame that has the
   highest total alignment score is chosen.
-* Translated 'good' sequences are aligned with MAFFT; amino acid translation is
-  then back-translated to a codon alignment
+* Optional: If an HMM representing the target protein sequence is provided
+  (option `--hmm`), the 'good' sequences will be screened against this HMM;
+  sequences with outlier bit scores will not be used for the initial aligment
+* Translated 'good' sequences are aligned with MAFFT; nucleotide sequences are
+  then aligned as codons using this amino acid alignment
 
 Dealing with pseudogenes/frameshifted sequences (adapted from transAlign, see
 [Bininda-Edmonds, 2005](https://doi.org/10.1186/1471-2105-6-156)):
