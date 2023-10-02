@@ -88,7 +88,7 @@ def summarize_framestats_with_hmm(trseq, hmmfile, outfile=None, iqr_mult=1.5):
     ]
     df = pd.DataFrame.from_dict(summary)
     # Outlier HMM bit scores
-    logger.info("Using outlier threshold multiplier of %d", iqr_mult)
+    logger.info("Using outlier threshold multiplier of %.2f", iqr_mult)
     q1, q3 = df["hmm_score"].quantile([0.25, 0.75])  # NaN values are ignored
     iqr = q3 - q1
     ulim = q3 + iqr_mult * iqr
