@@ -2,9 +2,11 @@
 
 from pytransaln.stats import stats
 from pytransaln.align import align
+from pytransaln import __version__
 
 import argparse
 import logging
+import sys
 
 logging.basicConfig(
     format="%(asctime)s : %(levelname)s : %(message)s", level=logging.INFO
@@ -25,6 +27,11 @@ def main():
         default=5,
         type=int,
         help="Genetic code to use for all sequences, NCBI translation table number (except stopless codes 27, 28, 31)",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=__version__,
     )
     subparsers = parser.add_subparsers(required=True)
     parser_align = subparsers.add_parser(
@@ -135,6 +142,9 @@ def main():
         default="test.hist_minstops_perseq.png",
         help="Path to plot histogram of minimum stop codons per sequence",
     )
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
     args = parser.parse_args()
     args.func(args)
 
