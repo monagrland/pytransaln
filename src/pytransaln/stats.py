@@ -185,7 +185,9 @@ def stats(args):
     if args.hmm:
         logger.info("Using HMM model in %s to screen translations", args.hmm)
         # TODO check for sequences which pass in more than one frame
-        df, llim, ulim = summarize_framestats_with_hmm(trseq, args.hmm, args.out_hmmsearch, 1.5)
+        df, llim, ulim = summarize_framestats_with_hmm(
+            trseq, args.hmm, args.out_hmmsearch, 1.5
+        )
     else:
         df = summarize_framestats(trseq)
         df["ok"] = df["stops"] == 0

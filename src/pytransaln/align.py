@@ -133,7 +133,9 @@ def align(args):
 
     if len(too_many_stops) > 0:
         logger.info(
-            "%d sequences with > %d stop codons", len(too_many_stops), args.maxstops,
+            "%d sequences with > %d stop codons",
+            len(too_many_stops),
+            args.maxstops,
         )
         if len(too_many_stops) >= 0.5 * (len(nt)):
             logger.warning(
@@ -141,10 +143,17 @@ def align(args):
             )
 
     if args.hmm:
-        logger.info("Using HMM %s to screen translations of %d sequences with <= %d stop codons", args.hmm, len(tr), args.maxstops)
-        df, llim, ulim = summarize_framestats_with_hmm(tr, args.hmm, args.out_hmmsearch, 1.5)
+        logger.info(
+            "Using HMM %s to screen translations of %d sequences with <= %d stop codons",
+            args.hmm,
+            len(tr),
+            args.maxstops,
+        )
+        df, llim, ulim = summarize_framestats_with_hmm(
+            tr, args.hmm, args.out_hmmsearch, 1.5
+        )
         # TODO output HMM screening stats
-        ok = [(i.seq_id, i.frame) for i in df[df['hmm_ok']].itertuples()]
+        ok = [(i.seq_id, i.frame) for i in df[df["hmm_ok"]].itertuples()]
         add = defaultdict(lambda: defaultdict(str))
         ok_dict = defaultdict(lambda: defaultdict(str))
         for i in tr:
@@ -153,8 +162,12 @@ def align(args):
                     ok_dict[i][frame] = tr[i][frame]
                 else:
                     add[i][frame] = tr[i][frame]
-        logger.info("%d sequences failed HMM screening despite having <= %d stop codons; will not be used in initial alignment", len(add), args.maxstops)
-        too_many_stops.update(add) # TODO separate these bad sequences in another file
+        logger.info(
+            "%d sequences failed HMM screening despite having <= %d stop codons; will not be used in initial alignment",
+            len(add),
+            args.maxstops,
+        )
+        too_many_stops.update(add)  # TODO separate these bad sequences in another file
         tr = ok_dict
 
     logger.info("%d sequences for initial alignment", len(tr))

@@ -31,12 +31,14 @@ def translate_striptrailing(seq, frame, table, id, name):
     """
     if frame < 0:
         len_prime = len(seq) - (0 - frame - 1)
-        trailing = (len_prime % 3)
+        trailing = len_prime % 3
         until = len(seq) - trailing
-        return seq.reverse_complement()[-frame-1:until].translate(table=table, id=id, name=name)
+        return seq.reverse_complement()[-frame - 1 : until].translate(
+            table=table, id=id, name=name
+        )
     else:
         len_prime = len(seq) - frame
-        trailing = (len_prime % 3)
+        trailing = len_prime % 3
         until = len(seq) - trailing
         return seq[frame:until].translate(table=table, id=id, name=name)
 
