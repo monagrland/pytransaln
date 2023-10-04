@@ -122,7 +122,8 @@ def align(args):
         seq2frame = {i: list(tr[i].keys())[0] for i in tr}
     else:
         logger.info(
-            f"Applying same reading frame offset {str(args.frame)} for all sequences"
+            "Applying same reading frame offset %d for all sequences",
+            args.frame,
         )
         # Single reading frame for all sequences
         seq2frame = {i: args.frame for i in nt}

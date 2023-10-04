@@ -193,7 +193,9 @@ def guessframe(seqdict, codes, maxstops):
     # Assume that true reading frame has fewest stop codons
     ok = {i: minstops[i] for i in minstops if len(minstops[i]) == 1}
     logger.info(
-        f"{str(len(ok))} of {str(len(minstops))} sequences have one frame with fewest stop codons"
+        "%d of %d sequences have one frame with fewest stop codons",
+        len(ok),
+        len(minstops),
     )
     if len(ok) < len(minstops):
         logger.info(
