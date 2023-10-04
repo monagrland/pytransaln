@@ -101,6 +101,20 @@ alv -t codon -l alignment.fasta | less -R
 ```
 
 
+## Testing and benchmarking
+
+Commands to run tests with example data (from the benchmark data sets
+distributed with
+[transAlign](https://uol.de/systematik-evolutionsbiologie/programme)) are in
+the Makefile:
+
+```bash
+make help # list available commands
+make benchmark # download test data and run alignments
+make clean # delete benchmark output
+```
+
+
 ## Future enhancements
 
 In order of priority
@@ -110,7 +124,7 @@ In order of priority
 - [x] Report screened sequences that pass HMM screen
 - [x] Use HMM to screen during alignment too
 - [x] Identify likely frameshift positions from MAFFT .map file
-- [ ] Benchmarking dataset
+- [x] Benchmarking dataset
 - [ ] Don't count terminal stop codons
 - [ ] Add pre and post frame sequence to alignment
 - [ ] Guess genetic code
