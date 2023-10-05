@@ -8,7 +8,7 @@ from Bio.Align import PairwiseAligner
 logger = logging.getLogger(__name__)
 
 
-def translate_striptrailing(seq, frame, table, id, name):
+def translate_striptrailing(seq, frame, table, id, name, ignore_terminal_stop=False):
     """Translate SeqRecord nucleotide sequence without trailing extra bases
 
     .translate() method of Bio.SeqRecord will complain if sequence length is
@@ -28,22 +28,28 @@ def translate_striptrailing(seq, frame, table, id, name):
     id : str
     name : str
         ID and Name for new SeqRecord object of the translation
+    drop_terminal_stop : bool
+        Do not include terminal stop codon in the translation?
     """
     if frame < 0:
         len_prime = len(seq) - (0 - frame - 1)
         trailing = len_prime % 3
         until = len(seq) - trailing
-        return seq.reverse_complement()[-frame - 1 : until].translate(
+        out = seq.reverse_complement()[-frame - 1 : until].translate(
             table=table, id=id, name=name
         )
     else:
         len_prime = len(seq) - frame
         trailing = len_prime % 3
         until = len(seq) - trailing
-        return seq[frame:until].translate(table=table, id=id, name=name)
+        out = seq[frame:until].translate(table=table, id=id, name=name)
+    if ignore_terminal_stop:
+        if str(out.seq[-1:]) == "*":
+            out = out[:-1]
+    return out
 
 
-def translate_3_frames(seqdict, codes):
+def translate_3_frames(seqdict, codes, ignore_terminal_stop):
     """Translate nucleotide sequences into three forward frames
 
     Parameters
@@ -64,18 +70,18 @@ def translate_3_frames(seqdict, codes):
         for frame in [0, 1, 2]:
             newid = ";".join([i, f"frame={str(frame)}", f"code={str(codes[i])}"])
             out[i][frame] = translate_striptrailing(
-                seqdict[i], frame=frame, table=codes[i], id=newid, name=newid
+                seqdict[i], frame=frame, table=codes[i], id=newid, name=newid, ignore_terminal_stop=ignore_terminal_stop
             )
     return out
 
 
-def onebestframe(seqdict, codes, maxstops):
+def onebestframe(seqdict, codes, maxstops, ignore_terminal_stop):
     """Find one reading frame that minimizes stop codons for all sequences
 
     Assumes that all sequences have same frame, e.g. PCR amplicons with
     conserved primers.
     """
-    trseq = translate_3_frames(seqdict, codes)
+    trseq = translate_3_frames(seqdict, codes, ignore_terminal_stop)
     sumstops = {
         frame: sum([trseq[i][frame].seq.count("*") for i in trseq])
         for frame in [0, 1, 2]
@@ -96,7 +102,7 @@ def onebestframe(seqdict, codes, maxstops):
     return ok, too_many_stops
 
 
-def translate_1_frame(seqdict, frames, codes, maxstops):
+def translate_1_frame(seqdict, frames, codes, maxstops, ignore_terminal_stop):
     """Translate nucleotide sequences into a specified forward reading frame
 
     Parameters
@@ -119,7 +125,7 @@ def translate_1_frame(seqdict, frames, codes, maxstops):
     for i in seqdict:
         newid = ";".join([i, f"frame={str(frames[i])}", f"code={str(codes[i])}"])
         trseq = translate_striptrailing(
-            seqdict[i], frame=frames[i], table=codes[i], id=newid, name=newid
+            seqdict[i], frame=frames[i], table=codes[i], id=newid, name=newid, ignore_terminal_stop=ignore_terminal_stop
         )
         if trseq.seq.count("*") > maxstops:
             logger.info("%d stop codons in sequence %s", trseq.seq.count("*"), i)
@@ -129,7 +135,7 @@ def translate_1_frame(seqdict, frames, codes, maxstops):
     return out, too_many_stops
 
 
-def translate_minstops(seqdict, codes, maxstops):
+def translate_minstops(seqdict, codes, maxstops, ignore_terminal_stop):
     """Translate in all forward frames and report translation with fewest stops
 
     Parameters
@@ -151,7 +157,7 @@ def translate_minstops(seqdict, codes, maxstops):
         second as above but containing sequences that have too many stop
         codons.
     """
-    threeframes = translate_3_frames(seqdict, codes)
+    threeframes = translate_3_frames(seqdict, codes, ignore_terminal_stop)
     minstops = {}
     too_many_stops = {}
     for i in threeframes:
@@ -174,7 +180,7 @@ def translate_minstops(seqdict, codes, maxstops):
     return minstops, too_many_stops
 
 
-def guessframe(seqdict, codes, maxstops):
+def guessframe(seqdict, codes, maxstops, ignore_terminal_stop):
     """Translate and automatically find best reading frame offset
 
     For each nucleotide sequence, find reading frame that minimizes number of
@@ -189,7 +195,7 @@ def guessframe(seqdict, codes, maxstops):
     ----------------------
     Same as translate_minstops
     """
-    minstops, too_many_stops = translate_minstops(seqdict, codes, maxstops)
+    minstops, too_many_stops = translate_minstops(seqdict, codes, maxstops, ignore_terminal_stop)
     # Assume that true reading frame has fewest stop codons
     ok = {i: minstops[i] for i in minstops if len(minstops[i]) == 1}
     logger.info(

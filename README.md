@@ -125,7 +125,7 @@ In order of priority
 - [x] Use HMM to screen during alignment too
 - [x] Identify likely frameshift positions from MAFFT .map file
 - [x] Benchmarking dataset
-- [ ] Don't count terminal stop codons
+- [x] Don't count terminal stop codons
 - [ ] Add pre and post frame sequence to alignment
 - [ ] Guess genetic code
 - [ ] Translate 6 frames

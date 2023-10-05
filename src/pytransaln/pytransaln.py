@@ -38,6 +38,12 @@ def main():
         help="Path to write tabular output from hmmsearch",
     )
     parser.add_argument(
+        "--ignore_terminal_stop",
+        default=False,
+        action="store_true",
+        help="Do not include terminal stop codon in translations"
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=__version__,

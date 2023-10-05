@@ -181,7 +181,7 @@ def stats(args):
     nt = SeqIO.to_dict(SeqIO.parse(args.input, "fasta"))
     logger.info("%d nucleotide sequences in input", len(nt))
     seq2code = {i: args.code for i in nt}
-    trseq = translate_3_frames(nt, seq2code)
+    trseq = translate_3_frames(nt, seq2code, args.ignore_terminal_stop)
     if args.hmm:
         logger.info("Using HMM model in %s to screen translations", args.hmm)
         # TODO check for sequences which pass in more than one frame
