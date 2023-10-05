@@ -16,11 +16,14 @@ logger = logging.getLogger(__name__)
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Translation-guided nucleotide alignment and reading frame statistics of coding sequences"
+        description="""
+        Translation-guided nucleotide alignment and reading frame statistics of
+        coding sequences
+        """
     )
     parser.add_argument(
         "--input",
-        help="Path to input file with unaligned nucleotide sequences, Fasta format",
+        help="Path to input file with unaligned nt sequences, Fasta format",
     )
     parser.add_argument(
         "--code",
@@ -41,16 +44,17 @@ def main():
         "--ignore_terminal_stop",
         default=False,
         action="store_true",
-        help="Do not include terminal stop codon in translations"
+        help="Do not include terminal stop codon in translations",
     )
     parser.add_argument(
+        "-v",
         "--version",
         action="version",
         version=__version__,
     )
     subparsers = parser.add_subparsers(required=True)
     parser_align = subparsers.add_parser(
-        "align", help="Translation-guided nucleotide (codon) alignment"
+        "align", help="Translation-guided nt (codon) alignment"
     )
     parser_align.set_defaults(func=align)
     parser_stats = subparsers.add_parser(
@@ -89,32 +93,32 @@ def main():
     parser_align.add_argument(
         "--out_aa",
         default="test.aa.fasta",
-        help="Path to write translated AA sequences",
+        help="Path to write aa translations with <=MAXSTOPS stop codons",
     )
     parser_align.add_argument(
         "--out_bad",
         default="test.bad.nt.fasta",
-        help="Path to write sequences with too many stop codons",
+        help="Path to write nt sequences with too many stop codons (putative pseudogenes)",
     )
     parser_align.add_argument(
         "--out_aln_aa",
         default="test.aln.aa.fasta",
-        help="Path to write aligned amino acid sequences",
+        help="Path to write initial aa alignment",
     )
     parser_align.add_argument(
         "--out_aln_nt",
         default="test.aln.nt.fasta",
-        help="Path to write aligned nucleotide sequences",
+        help="Path to write initial codon alignment",
     )
     parser_align.add_argument(
         "--out_aln_nt_aug",
         default="test.aln.nt.aug.fasta",
-        help="Path to write aligned nucleotide sequences with likely frameshifted sequences added",
+        help="Path to write codon alignment augmented with putative pseudogenes",
     )
     parser_align.add_argument(
         "--out_bad_fs_report",
         default="test.bad.nt.frameshifts.tsv",
-        help="Path to write report on likely frameshifts in 'bad' nucleotide sequences",
+        help="Path to write report on likely frameshifts in putative pseudogenes",
     )
     parser_align.add_argument(
         "--threads",

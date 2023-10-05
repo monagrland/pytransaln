@@ -70,7 +70,12 @@ def translate_3_frames(seqdict, codes, ignore_terminal_stop):
         for frame in [0, 1, 2]:
             newid = ";".join([i, f"frame={str(frame)}", f"code={str(codes[i])}"])
             out[i][frame] = translate_striptrailing(
-                seqdict[i], frame=frame, table=codes[i], id=newid, name=newid, ignore_terminal_stop=ignore_terminal_stop
+                seqdict[i],
+                frame=frame,
+                table=codes[i],
+                id=newid,
+                name=newid,
+                ignore_terminal_stop=ignore_terminal_stop,
             )
     return out
 
@@ -125,7 +130,12 @@ def translate_1_frame(seqdict, frames, codes, maxstops, ignore_terminal_stop):
     for i in seqdict:
         newid = ";".join([i, f"frame={str(frames[i])}", f"code={str(codes[i])}"])
         trseq = translate_striptrailing(
-            seqdict[i], frame=frames[i], table=codes[i], id=newid, name=newid, ignore_terminal_stop=ignore_terminal_stop
+            seqdict[i],
+            frame=frames[i],
+            table=codes[i],
+            id=newid,
+            name=newid,
+            ignore_terminal_stop=ignore_terminal_stop,
         )
         if trseq.seq.count("*") > maxstops:
             logger.info("%d stop codons in sequence %s", trseq.seq.count("*"), i)
@@ -195,7 +205,9 @@ def guessframe(seqdict, codes, maxstops, ignore_terminal_stop):
     ----------------------
     Same as translate_minstops
     """
-    minstops, too_many_stops = translate_minstops(seqdict, codes, maxstops, ignore_terminal_stop)
+    minstops, too_many_stops = translate_minstops(
+        seqdict, codes, maxstops, ignore_terminal_stop
+    )
     # Assume that true reading frame has fewest stop codons
     ok = {i: minstops[i] for i in minstops if len(minstops[i]) == 1}
     logger.info(

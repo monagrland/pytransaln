@@ -101,6 +101,16 @@ alv -t codon -l alignment.fasta | less -R
 ```
 
 
+## Output alignment
+
+Note that:
+* Leading and trailing bases not contained in complete codons may be omitted
+* Portions of the putative pseudogene sequences that were aligned in the second
+  step to the initial 'good' alignment may be omitted from the final
+  'augmented' alignment to preserve the reading frame. See the frameshift
+  report file for details.
+
+
 ## Testing and benchmarking
 
 Commands to run tests with example data (from the benchmark data sets
@@ -119,14 +129,7 @@ make clean # delete benchmark output
 
 In order of priority
 
-- [x] Diagnostic plots: stop codons per frame; min stop codons per seq
-- [x] Screen sequences with HMM profile of protein sequence to report stats
-- [x] Report screened sequences that pass HMM screen
-- [x] Use HMM to screen during alignment too
-- [x] Identify likely frameshift positions from MAFFT .map file
-- [x] Benchmarking dataset
-- [x] Don't count terminal stop codons
-- [ ] Add pre and post frame sequence to alignment
+- [ ] Add pre and post frame sequence back to alignment
 - [ ] Guess genetic code
 - [ ] Translate 6 frames
 - [ ] User-supplied input amino acid alignment

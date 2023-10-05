@@ -17,7 +17,12 @@ class TestTranslate(unittest.TestCase):
         self.assertEqual(
             str(
                 translate_striptrailing(
-                    TestTranslate.s, frame=0, table=5, id=None, name=None, ignore_terminal_stop=False,
+                    TestTranslate.s,
+                    frame=0,
+                    table=5,
+                    id=None,
+                    name=None,
+                    ignore_terminal_stop=False,
                 ).seq
             ),
             "MLMMFW",
@@ -25,7 +30,12 @@ class TestTranslate(unittest.TestCase):
         self.assertEqual(
             str(
                 translate_striptrailing(
-                    TestTranslate.s, frame=1, table=5, id=None, name=None, ignore_terminal_stop=False,
+                    TestTranslate.s,
+                    frame=1,
+                    table=5,
+                    id=None,
+                    name=None,
+                    ignore_terminal_stop=False,
                 ).seq
             ),
             "CW*YFD",
@@ -34,7 +44,12 @@ class TestTranslate(unittest.TestCase):
         self.assertEqual(
             str(
                 translate_striptrailing(
-                    TestTranslate.s, frame=-1, table=5, id=None, name=None, ignore_terminal_stop=False,
+                    TestTranslate.s,
+                    frame=-1,
+                    table=5,
+                    id=None,
+                    name=None,
+                    ignore_terminal_stop=False,
                 ).seq
             ),
             "IKMLST",
@@ -42,7 +57,12 @@ class TestTranslate(unittest.TestCase):
         self.assertEqual(
             str(
                 translate_striptrailing(
-                    TestTranslate.s, frame=-2, table=5, id=None, name=None, ignore_terminal_stop=False,
+                    TestTranslate.s,
+                    frame=-2,
+                    table=5,
+                    id=None,
+                    name=None,
+                    ignore_terminal_stop=False,
                 ).seq
             ),
             "SKYYQH",

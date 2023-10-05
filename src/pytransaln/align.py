@@ -107,7 +107,10 @@ def align(args):
         )
         seq2code = {i: args.code for i in nt}
         tr, too_many_stops = guessframe(
-            seqdict=nt, codes=seq2code, maxstops=args.maxstops, ignore_terminal_stop=args.ignore_terminal_stop
+            seqdict=nt,
+            codes=seq2code,
+            maxstops=args.maxstops,
+            ignore_terminal_stop=args.ignore_terminal_stop,
         )
         seq2frame = {i: list(tr[i].keys())[0] for i in tr}
     elif args.how.startswith("c"):
@@ -116,7 +119,10 @@ def align(args):
         )
         seq2code = {i: args.code for i in nt}
         tr, too_many_stops = onebestframe(
-            seqdict=nt, codes=seq2code, maxstops=args.maxstops, ignore_terminal_stop=args.ignore_terminal_stop
+            seqdict=nt,
+            codes=seq2code,
+            maxstops=args.maxstops,
+            ignore_terminal_stop=args.ignore_terminal_stop,
         )
         seq2frame = {i: list(tr[i].keys())[0] for i in tr}
     else:
@@ -128,7 +134,11 @@ def align(args):
         seq2frame = {i: args.frame for i in nt}
         seq2code = {i: args.code for i in nt}
         tr, too_many_stops = translate_1_frame(
-            seqdict=nt, frames=seq2frame, codes=seq2code, maxstops=args.maxstops, ignore_terminal_stop=args.ignore_terminal_stop
+            seqdict=nt,
+            frames=seq2frame,
+            codes=seq2code,
+            maxstops=args.maxstops,
+            ignore_terminal_stop=args.ignore_terminal_stop,
         )
 
     if len(too_many_stops) > 0:
