@@ -1,14 +1,26 @@
 help:
-	@echo "make build        Install package with setuptools and run unit tests"
+	@echo "make install      Install package with setuptools and run unit tests"
+	@echo "make build        Build distribution packages"
+	@echo "make pypi         Upload to PyPI (run make build first)"
 	@echo "make benchmark    Download test data (from transAlign benchmark set) and perform alignments"
 	@echo "make clean        Delete benchmark test run output"
 
-build: pyproject.toml
+install: pyproject.toml
 	pip install .
 	python -m unittest -v pytransaln.testmodule
 
+build: pyproject.toml
+	pip install --upgrade build
+	python3 -m build
+
+pypi:
+	pip install --upgrade twine
+	twine upload --repository pypi dist/*
+
 clean:
 	rm benchmark/test.*
+	mkdir -p dist_old
+	mv dist/* dist_old
 
 benchmark: benchmark/test.cons.RAG2.aln benchmark/test.cons.RBP3.aln benchmark/test.each.RAG2.aln benchmark/test.each.RBP3.aln benchmark/test.each.BDNF.aln benchmark/test.each_notermstop.BDNF.aln
 
