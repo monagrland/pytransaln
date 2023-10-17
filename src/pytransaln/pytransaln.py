@@ -133,6 +133,11 @@ def main():
         help="Path to plot histogram of HMM bit scores",
     )
     parser_stats.add_argument(
+        "--out_mqc_hmm",
+        default="test.hist_hmm_scores_mqc.json",
+        help="Path to write histogram of HMM bit scores in JSON format for MultiQC",
+    )
+    parser_stats.add_argument(
         "--out_screened",
         default="test.screened_ok.fasta",
         help="Path to write sequences that passed screening, Fasta format",
@@ -148,9 +153,19 @@ def main():
         help="Path to plot histogram of stops per reading frame",
     )
     parser_stats.add_argument(
+        "--out_mqc_spf",
+        default="test.hist_stops_perframe_mqc.json",
+        help="Path to write counts of stops per reading frame in JSON format for MultiQC",
+    )
+    parser_stats.add_argument(
         "--out_hist_mins",
         default="test.hist_minstops_perseq.png",
         help="Path to plot histogram of minimum stop codons per sequence",
+    )
+    parser_stats.add_argument(
+        "--out_mqc_mins",
+        default="test.hist_minstops_perseq_mqc.json",
+        help="Path to write counts of minimum stop codons per sequence in JSON format for MultiQC",
     )
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)

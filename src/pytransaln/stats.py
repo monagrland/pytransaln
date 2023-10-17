@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 
 from pytransaln.translate import translate_3_frames
+from pytransaln import __version__
 
 import pyhmmer
 import logging
+import json
 import pandas as pd
 import matplotlib.pyplot as plt
+from collections import Counter
+from numpy import histogram
 
 from Bio import SeqIO
 
@@ -133,6 +137,36 @@ def hist_stops_per_frame(df):
     return fig, axs
 
 
+def mqc_hist_stops_per_frame(df):
+    """Dict of the number of stop codons facetted by reading frame for MultiQC
+
+    If sequences are amplified by the same PCR primers, we expect them all to
+    be in the same frame. Most sequences in the correct reading frame should
+    have zero stop codons.
+
+    Possible exceptions: Wrong genetic code used; amplified sequence
+    encompasses introns or untranslated regions; sequences mostly pseudogenes
+    or non-coding.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Output from summarize_framestats()
+
+    Returns
+    -------
+    dict
+    """
+    out = {
+        "id" : "pytransaln_stops_per_frame",
+        "section_name" : "Stop codons per sequence per reading frame",
+        "description" : f"Counts of stop codons per sequence in each reading frame; if sequences are amplified by same PCR primers, expect them all to be in the same frame. Majority of sequences in that frame should have zero stop codons. Source: pytransaln v{__version__}",
+        "plot_type" : "linegraph",
+    }
+    out['data'] = { frame : Counter(df.query(f"frame == {frame}")["stops"]) for frame in [0,1,2] }
+    return out
+
+
 def hist_minstops_per_seq(df):
     """Plot histogram of minimum number of stops per sequence
 
@@ -153,6 +187,31 @@ def hist_minstops_per_seq(df):
     axs.set_xlabel("Minimum number of stop codons")
     axs.set_xticks(breaks)
     return fig, axs
+
+
+def mqc_hist_minstops_per_seq(df):
+    """Dict output of minimum number stops per sequence for MultiQC plot
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Output from summarize_framestats()
+
+    Returns
+    -------
+    dict
+    """
+    out = {
+        "id" : "pytransaln_minstops_per_seq",
+        "section_name" : "Minimum stop codons per sequence",
+        "description" : f"Number of stop codons in the reading frame with fewest stop codons, for each sequence. The majority should have 0 stops, if not, possible reasons include: wrong genetic code specified, sequence is reversed, sequence includes non-coding regions (e.g. introns). Source: pytransaln v{__version__}",
+        "plot_type" : "linegraph",
+    }
+    minstops = df.groupby("seq_id")[["stops"]].min()
+    minstops = dict(Counter(minstops['stops']))
+    minstops = { int(i) : minstops[i] for i in minstops }
+    out['data'] = { 'seqs' : minstops }
+    return out
 
 
 def hist_hmm_scores(df, vlines):
@@ -177,6 +236,31 @@ def hist_hmm_scores(df, vlines):
     return fig, ax
 
 
+def mqc_hist_hmm_scores(df, vlines):
+    """Dict output histogram of minimum number of stops per sequence for MultiQC
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Output from summarize_framestats()
+    vlines : list
+        List of coordinates to draw vertical lines overlay to annotate plot
+
+    Returns
+    -------
+    dict
+    """
+    hist, bin_edges = histogram(df["hmm_score"].dropna(), bins="auto")
+    out = {
+        "id" : "pytransaln_hmm_scores_perseq",
+        "section_name" : "HMM bit scores distribution",
+        "description" : f"Bit scores of HMM alignments vs. translations, used to filter outlier sequences. Counts have been binned into histogram. Source: pytransaln v{__version__}",
+        "plot_type" : "linegraph",
+    }
+    out['data'] = { 'seqs' : dict(zip(bin_edges.tolist(), hist.tolist())) } # serialize with .tolist() to change numpy int64 to python scalars, else json cannot dump
+    return out
+
+
 def stats(args):
     nt = SeqIO.to_dict(SeqIO.parse(args.input, "fasta"))
     logger.info("%d nucleotide sequences in input", len(nt))
@@ -199,12 +283,21 @@ def stats(args):
     )
     hist_spf_fig, hist_spf_axs = hist_stops_per_frame(df)
     hist_spf_fig.savefig(args.out_hist_spf)
+    dict_spf = mqc_hist_stops_per_frame(df)
+    with open(args.out_mqc_spf, "w") as fh:
+        json.dump(dict_spf, fh, indent=4)
     hist_mins_fig, hist_mins_axs = hist_minstops_per_seq(df)
     hist_mins_fig.savefig(args.out_hist_mins)
+    dict_mins = mqc_hist_minstops_per_seq(df)
+    with open(args.out_mqc_mins, "w") as fh:
+        json.dump(dict_mins, fh, indent=4)
     if args.hmm:
         logger.info("Plotting histogram of HMM bitscores %s", args.out_hist_hmm)
         hist_hmm_fig, hist_hmm_axs = hist_hmm_scores(df, [llim, ulim])
         hist_hmm_fig.savefig(args.out_hist_hmm)
+        dict_hmm_scores = mqc_hist_hmm_scores(df, [llim, ulim])
+        with open(args.out_mqc_hmm, "w") as fh:
+            json.dump(dict_hmm_scores, fh, indent=4)
         # Write screened sequences
         ok = list(df[df["ok"]]["seq_id"])
         logger.info("Writing ok sequences to file %s", args.out_screened)
