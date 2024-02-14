@@ -1,3 +1,7 @@
+![Conda Version](https://img.shields.io/conda/v/bioconda/pytransaln)
+![PyPI - Version](https://img.shields.io/pypi/v/pytransaln)
+![GitHub License](https://img.shields.io/github/license/monagrland/pytransaln)
+
 Translation-guided alignment of nucleotide sequences
 ====================================================
 
@@ -72,14 +76,31 @@ MACSE is quite slow for de novo alignments and is probably overkill for most
 
 ## Installation
 
-Install from PyPI with pip, preferably into a virtualenv or Conda environment:
+
+### From PyPI
+
+Install from PyPI with pip, preferably into a virtualenv:
 
 ```bash
+python -m venv /path/to/env
+source /path/to/env/bin/activate
 pip install pytransaln
 ```
 
 External dependencies are not installed via pip, but should also be in path:
 * [MAFFT](https://mafft.cbrc.jp/alignment/software/) >=6.811; tested with v7.520.
+
+
+### From Bioconda
+
+Using Conda or Mamba, preferably to a new environment:
+
+```bash
+mamba create -p /path/to/env -c conda-forge -c bioconda -c defaults --strict-channel-priority pytransaln
+```
+
+Refer to the [Bioconda documentation](https://bioconda.github.io/#usage) for
+details on channel priority.
 
 
 ## Usage
@@ -120,6 +141,7 @@ the Makefile:
 
 ```bash
 make help # list available commands
+make install # install to current path/environment
 make benchmark # download test data and run alignments
 make clean # delete benchmark output
 ```
