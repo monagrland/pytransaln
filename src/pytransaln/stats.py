@@ -42,7 +42,7 @@ def seqrecords2sequenceblock(seqrecords, alphabet=pyhmmer.easel.Alphabet.amino()
     """
     seqblock = pyhmmer.easel.TextSequenceBlock(
         [
-            pyhmmer.easel.TextSequence(sequence=str(i.seq), name=i.id.encode())
+            pyhmmer.easel.TextSequence(sequence=str(i.seq), name=i.id)
             for i in seqrecords
         ]
     )
@@ -77,7 +77,7 @@ def summarize_framestats_with_hmm(trseq, hmmfile, outfile=None, iqr_mult=1.5):
     if outfile:
         with open(outfile, "wb") as fh:
             hits.write(fh, format="targets")
-    id2score = {i.name.decode(): i.score for i in hits}
+    id2score = {i.name: i.score for i in hits}
     summary = [
         {
             "seq_id": i,
